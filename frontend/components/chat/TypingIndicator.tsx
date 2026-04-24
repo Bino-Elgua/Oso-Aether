@@ -1,0 +1,20 @@
+'use client'
+
+import { motion } from 'framer-motion'
+
+export default function TypingIndicator() {
+  return (
+    <div className="message-pet rounded-lg px-4 py-3">
+      <div className="flex gap-1">
+        {[0, 1, 2].map((i) => (
+          <motion.span
+            key={i}
+            className="inline-block h-1.5 w-1.5 rounded-full bg-soul"
+            animate={{ opacity: [0.3, 1, 0.3] }}
+            transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}

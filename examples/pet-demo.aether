@@ -1,0 +1,5 @@
+birth "void-whisper"
+think "Tell me something I don't know about deep sea creatures"
+act "web_search" "bioluminescent creatures mariana trench"
+think "That's fascinating. Can you draw one?"
+act "image_gen" "bioluminescent jellyfish deep ocean dark background"

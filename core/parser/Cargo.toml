@@ -1,0 +1,12 @@
+[package]
+name = "oso-parser"
+version = "0.1.0"
+edition = "2021"
+description = "Strict 3-primitive parser for Ọ̀ṣỌ́"
+
+[dependencies]
+thiserror = "1.0"
+
+[lib]
+name = "oso_parser"
+path = "src/lib.rs"

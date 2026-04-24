@@ -1,0 +1,15 @@
+[project]
+name = "oso-translator"
+version = "0.1.0"
+description = "LLM translator layer for \u1ECC\u0300\u1E63\u1ECC\u0301 — natural language to 3 primitives"
+requires-python = ">=3.11"
+dependencies = [
+    "anthropic>=0.40.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.32.0",
+    "pydantic>=2.10.0",
+]
+
+[build-system]
+requires = ["setuptools>=75.0"]
+build-backend = "setuptools.build_meta"
