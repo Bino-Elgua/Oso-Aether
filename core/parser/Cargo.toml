@@ -6,7 +6,15 @@ description = "Strict 3-primitive parser for Ọ̀ṣỌ́"
 
 [dependencies]
 thiserror = "1.0"
+wasm-bindgen = { version = "0.2", optional = true }
+serde = { version = "1.0", features = ["derive"], optional = true }
+serde-wasm-bindgen = { version = "0.6", optional = true }
+
+[features]
+default = []
+wasm = ["dep:wasm-bindgen", "dep:serde", "dep:serde-wasm-bindgen"]
 
 [lib]
 name = "oso_parser"
 path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
