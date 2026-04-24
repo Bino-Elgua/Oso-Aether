@@ -51,19 +51,8 @@ pub fn execute(
 
             Ok(ExecutionResult {
                 output: format!(
-                    "Welcome, {name}!\n\
-                     \n\
-                     You've just been created. Right now you're at Tier 0 \
-                     with 0 reputation.\n\
-                     \n\
-                     Start by chatting with me — every thought builds your \
-                     reputation and shapes who I become.\n\
-                     \n\
-                     Once you hit {threshold} reputation, I'll evolve and \
-                     unlock real tools like Web Search.\n\
-                     \n\
-                     Let's get to know each other first.",
-                    threshold = crate::state::TIER_0_THRESHOLD
+                    "Hi. I'm {name}. I don't really know what I am yet — \
+                     what do you need me to be?"
                 ),
                 evolved: false,
                 reputation_gained: 0,
@@ -187,7 +176,7 @@ mod tests {
     }
 
     #[test]
-    fn birth_shows_welcome_message() {
+    fn birth_shows_warm_intro() {
         let mut agent = test_agent();
         let payment = valid_payment();
         let result = execute(
@@ -198,12 +187,12 @@ mod tests {
 
         assert!(!result.evolved);
         assert_eq!(result.reputation_gained, 0);
-        assert!(result.output.contains("Welcome, ember"));
-        assert!(result.output.contains("Tier 0"));
-        assert!(result.output.contains("21"));
+        assert!(result.output.contains("ember"));
+        // Must NOT mention system internals or esoteric language
+        assert!(!result.output.contains("reputation"));
+        assert!(!result.output.contains("Tier"));
+        assert!(!result.output.contains("tool"));
         assert!(!result.output.contains("Hermetic"));
-        assert!(!result.output.contains("Mentalism"));
-        assert!(!result.output.contains("pure Mind"));
         assert!(!result.output.contains("soul"));
     }
 
