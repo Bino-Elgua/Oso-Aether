@@ -8,6 +8,118 @@ pub struct TranslationResult {
     pub original: String,
     /// Confidence score (0.0 to 1.0) — how certain the match was.
     pub confidence: f64,
+    /// If this was a slash command, which one.
+    pub slash_command: Option<SlashCommand>,
+}
+
+/// All recognized slash commands.
+/// These are syntax sugar — every one resolves to `think` or `act`.
+#[derive(Debug, Clone, PartialEq)]
+pub enum SlashCommand {
+    /// /private <message> → think (marked private)
+    Private { message: String },
+    /// /publish <message> → think (marked for public wiki)
+    Publish { message: String },
+    /// /status → think (system renders status)
+    Status,
+    /// /tools → think (in Tier 0) or act (post-evolution, shows unlocked)
+    Tools,
+    /// /help → think (system renders help)
+    Help,
+    /// /clear → think (clears conversation, keeps long-term memory)
+    Clear,
+    /// /export → think (generates private markdown export, never published)
+    Export,
+    /// /personality → think (shows personality breakdown)
+    Personality,
+}
+
+/// Check if input is a slash command. Returns None if not.
+fn try_slash_command(input: &str) -> Option<TranslationResult> {
+    if !input.starts_with('/') {
+        return None;
+    }
+
+    let (cmd, rest) = match input[1..].find(' ') {
+        Some(pos) => (&input[1..1 + pos], input[2 + pos..].trim()),
+        None => (&input[1..], ""),
+    };
+
+    let cmd_lower = cmd.to_lowercase();
+
+    match cmd_lower.as_str() {
+        "private" => {
+            let message = if rest.is_empty() { input.to_string() } else { rest.to_string() };
+            Some(TranslationResult {
+                primitive: Primitive::Think {
+                    intent: format!("[private] {}", message),
+                },
+                original: input.to_string(),
+                confidence: 1.0,
+                slash_command: Some(SlashCommand::Private { message }),
+            })
+        }
+        "publish" => {
+            let message = if rest.is_empty() { input.to_string() } else { rest.to_string() };
+            Some(TranslationResult {
+                primitive: Primitive::Think {
+                    intent: format!("[publish] {}", message),
+                },
+                original: input.to_string(),
+                confidence: 1.0,
+                slash_command: Some(SlashCommand::Publish { message }),
+            })
+        }
+        "status" => Some(TranslationResult {
+            primitive: Primitive::Think {
+                intent: "[status]".to_string(),
+            },
+            original: input.to_string(),
+            confidence: 1.0,
+            slash_command: Some(SlashCommand::Status),
+        }),
+        "tools" => Some(TranslationResult {
+            primitive: Primitive::Think {
+                intent: "[tools]".to_string(),
+            },
+            original: input.to_string(),
+            confidence: 1.0,
+            slash_command: Some(SlashCommand::Tools),
+        }),
+        "help" => Some(TranslationResult {
+            primitive: Primitive::Think {
+                intent: "[help]".to_string(),
+            },
+            original: input.to_string(),
+            confidence: 1.0,
+            slash_command: Some(SlashCommand::Help),
+        }),
+        "clear" => Some(TranslationResult {
+            primitive: Primitive::Think {
+                intent: "[clear]".to_string(),
+            },
+            original: input.to_string(),
+            confidence: 1.0,
+            slash_command: Some(SlashCommand::Clear),
+        }),
+        "export" => Some(TranslationResult {
+            primitive: Primitive::Think {
+                intent: "[export]".to_string(),
+            },
+            original: input.to_string(),
+            confidence: 1.0,
+            slash_command: Some(SlashCommand::Export),
+        }),
+        "personality" => Some(TranslationResult {
+            primitive: Primitive::Think {
+                intent: "[personality]".to_string(),
+            },
+            original: input.to_string(),
+            confidence: 1.0,
+            slash_command: Some(SlashCommand::Personality),
+        }),
+        _ => None,
+    }
 }
 
 /// Translate natural language into an Ọ̀ṣỌ́ primitive.
@@ -25,6 +137,11 @@ pub fn translate(input: &str) -> Option<TranslationResult> {
     let trimmed = input.trim();
     if trimmed.is_empty() {
         return None;
+    }
+
+    // ── Slash commands (highest priority) ──────────────────────────
+    if let Some(result) = try_slash_command(trimmed) {
+        return Some(result);
     }
 
     let lower = trimmed.to_lowercase();
@@ -48,6 +165,7 @@ pub fn translate(input: &str) -> Option<TranslationResult> {
         primitive: Primitive::Think { intent: trimmed.to_string() },
         original: trimmed.to_string(),
         confidence: 0.8,
+        slash_command: None,
     })
 }
 
@@ -78,6 +196,7 @@ fn try_birth(lower: &str, original: &str) -> Option<TranslationResult> {
                 primitive: Primitive::Birth { name },
                 original: original.to_string(),
                 confidence: 0.9,
+                slash_command: None,
             });
         }
     }
@@ -92,6 +211,7 @@ fn try_birth(lower: &str, original: &str) -> Option<TranslationResult> {
                 primitive: Primitive::Birth { name },
                 original: original.to_string(),
                 confidence: 0.7,
+                slash_command: None,
             });
         }
     }
@@ -155,6 +275,7 @@ fn try_act(lower: &str, original: &str) -> Option<TranslationResult> {
                     },
                     original: original.to_string(),
                     confidence: 0.9,
+                    slash_command: None,
                 });
             }
         }
@@ -332,5 +453,83 @@ mod tests {
     fn create_agent_is_birth_not_act() {
         let r = translate("create an agent called Blaze").unwrap();
         assert!(matches!(r.primitive, Primitive::Birth { ref name } if name == "Blaze"));
+    }
+
+    // ── Slash commands ──
+
+    #[test]
+    fn slash_status() {
+        let r = translate("/status").unwrap();
+        assert!(matches!(r.primitive, Primitive::Think { ref intent } if intent == "[status]"));
+        assert_eq!(r.slash_command, Some(SlashCommand::Status));
+        assert_eq!(r.confidence, 1.0);
+    }
+
+    #[test]
+    fn slash_help() {
+        let r = translate("/help").unwrap();
+        assert_eq!(r.slash_command, Some(SlashCommand::Help));
+    }
+
+    #[test]
+    fn slash_tools() {
+        let r = translate("/tools").unwrap();
+        assert_eq!(r.slash_command, Some(SlashCommand::Tools));
+    }
+
+    #[test]
+    fn slash_personality() {
+        let r = translate("/personality").unwrap();
+        assert_eq!(r.slash_command, Some(SlashCommand::Personality));
+    }
+
+    #[test]
+    fn slash_clear() {
+        let r = translate("/clear").unwrap();
+        assert_eq!(r.slash_command, Some(SlashCommand::Clear));
+    }
+
+    #[test]
+    fn slash_export() {
+        let r = translate("/export").unwrap();
+        assert_eq!(r.slash_command, Some(SlashCommand::Export));
+    }
+
+    #[test]
+    fn slash_private_with_message() {
+        let r = translate("/private I don't want anyone to see this").unwrap();
+        assert_eq!(
+            r.slash_command,
+            Some(SlashCommand::Private {
+                message: "I don't want anyone to see this".into(),
+            })
+        );
+        // Resolves to think
+        assert!(matches!(r.primitive, Primitive::Think { .. }));
+    }
+
+    #[test]
+    fn slash_publish_with_message() {
+        let r = translate("/publish I love exploring new ideas").unwrap();
+        assert_eq!(
+            r.slash_command,
+            Some(SlashCommand::Publish {
+                message: "I love exploring new ideas".into(),
+            })
+        );
+    }
+
+    #[test]
+    fn unknown_slash_is_not_command() {
+        let r = translate("/foobar something").unwrap();
+        // Unknown slash command falls through to normal think
+        assert!(r.slash_command.is_none());
+        assert!(matches!(r.primitive, Primitive::Think { .. }));
+    }
+
+    #[test]
+    fn normal_text_has_no_slash_command() {
+        let r = translate("hello world").unwrap();
+        assert!(r.slash_command.is_none());
     }
 }

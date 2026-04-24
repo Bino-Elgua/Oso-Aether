@@ -82,4 +82,76 @@ pub enum ExecutionEvent {
         tool: String,
         available_tools: Vec<String>,
     },
+
+    // ── Slash command events ──
+
+    /// /status — show agent state.
+    StatusRequested {
+        name: String,
+        reputation: u64,
+        tier: u8,
+        alignment: String,
+        personality: PersonalitySnapshot,
+        thought_count: usize,
+        action_count: usize,
+    },
+
+    /// /tools — show available/locked tools.
+    ToolsRequested {
+        unlocked: Vec<String>,
+        locked: Vec<(String, u64)>,
+    },
+
+    /// /help — list available slash commands.
+    HelpRequested,
+
+    /// /personality — detailed personality breakdown.
+    PersonalityRequested {
+        name: String,
+        personality: PersonalitySnapshot,
+        agent_type: AgentType,
+    },
+
+    /// /private — thought recorded as private.
+    PrivateThoughtRecorded {
+        message: String,
+        thought_count: usize,
+    },
+
+    /// /publish — thought marked for public wiki (The Garden).
+    PublishRequested {
+        message: String,
+        thought_count: usize,
+    },
+
+    /// /clear — conversation history cleared.
+    ConversationCleared,
+
+    /// /export — private markdown export generated.
+    ExportGenerated {
+        name: String,
+        thought_count: usize,
+        action_count: usize,
+    },
+
+    /// A public wiki entry was updated (Garden event).
+    GardenEntryUpdated {
+        agent_id: String,
+        content_hash: String,
+    },
+
+    /// Agent ownership was transferred.
+    OwnershipTransferred {
+        agent_id: String,
+        from_owner: String,
+        to_owner: String,
+    },
+}
+
+/// Snapshot of personality traits for events.
+#[derive(Debug, Clone)]
+pub struct PersonalitySnapshot {
+    pub curiosity: f64,
+    pub boldness: f64,
+    pub empathy: f64,
 }

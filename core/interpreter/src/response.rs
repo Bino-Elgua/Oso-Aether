@@ -188,6 +188,131 @@ impl ResponseGenerator for DefaultResponder {
                 evolved: false,
                 reputation_gained: 0,
             },
+
+            // ── Slash command responses ──
+
+            ExecutionEvent::StatusRequested {
+                name, reputation, tier, alignment,
+                personality, thought_count, action_count,
+            } => {
+                let message = format!(
+                    "{name}\n\
+                     Reputation: {reputation} | Tier: {tier} | Alignment: {alignment}\n\
+                     Personality: curiosity {c:.0}% / boldness {b:.0}% / empathy {e:.0}%\n\
+                     Thoughts: {thought_count} | Actions: {action_count}",
+                    c = personality.curiosity * 100.0,
+                    b = personality.boldness * 100.0,
+                    e = personality.empathy * 100.0,
+                );
+                Response { message, evolved: false, reputation_gained: 0 }
+            }
+
+            ExecutionEvent::ToolsRequested { unlocked, locked } => {
+                let mut lines = Vec::new();
+                if unlocked.is_empty() {
+                    lines.push("No tools unlocked yet. Keep chatting to grow.".to_string());
+                } else {
+                    lines.push("Unlocked:".to_string());
+                    for t in unlocked { lines.push(format!("  + {t}")); }
+                }
+                if !locked.is_empty() {
+                    lines.push("Locked:".to_string());
+                    for (t, req) in locked {
+                        lines.push(format!("  - {t} (unlocks at {req} rep)"));
+                    }
+                }
+                Response {
+                    message: lines.join("\n"),
+                    evolved: false,
+                    reputation_gained: 0,
+                }
+            }
+
+            ExecutionEvent::HelpRequested => Response {
+                message: "Available commands:\n\
+                          /status       — See your current stats\n\
+                          /tools        — See available and locked abilities\n\
+                          /personality  — Detailed personality breakdown\n\
+                          /private <msg> — Record a private thought\n\
+                          /publish <msg> — Share a thought to The Garden\n\
+                          /export       — Download your conversation (private)\n\
+                          /clear        — Clear conversation history\n\
+                          /help         — This message"
+                    .to_string(),
+                evolved: false,
+                reputation_gained: 0,
+            },
+
+            ExecutionEvent::PersonalityRequested {
+                name, personality, agent_type,
+            } => {
+                let message = format!(
+                    "{name} — {label}\n\
+                     \n\
+                     Curiosity: {c:.0}%\n\
+                     Boldness:  {b:.0}%\n\
+                     Empathy:   {e:.0}%\n\
+                     \n\
+                     These traits shape how I grow and what I'm good at.",
+                    label = agent_type.label(),
+                    c = personality.curiosity * 100.0,
+                    b = personality.boldness * 100.0,
+                    e = personality.empathy * 100.0,
+                );
+                Response { message, evolved: false, reputation_gained: 0 }
+            }
+
+            ExecutionEvent::PrivateThoughtRecorded { .. } => Response {
+                message: "Noted. That one stays between us.".to_string(),
+                evolved: false,
+                reputation_gained: 1,
+            },
+
+            ExecutionEvent::PublishRequested { .. } => Response {
+                message: "Got it. I'll share that in The Garden.".to_string(),
+                evolved: false,
+                reputation_gained: 1,
+            },
+
+            ExecutionEvent::ConversationCleared => Response {
+                message: "Conversation cleared. I still remember everything \
+                          important — just starting fresh here."
+                    .to_string(),
+                evolved: false,
+                reputation_gained: 0,
+            },
+
+            ExecutionEvent::ExportGenerated { name, thought_count, action_count } => Response {
+                message: format!(
+                    "Export ready for {name}. {thought_count} thoughts, \
+                     {action_count} actions. This file is completely private \
+                     — nothing was published."
+                ),
+                evolved: false,
+                reputation_gained: 0,
+            },
+
+            ExecutionEvent::GardenEntryUpdated { agent_id, content_hash } => Response {
+                message: format!(
+                    "Garden entry updated for agent {short_id}.\n\
+                     Content hash: {short_hash}",
+                    short_id = &agent_id[..agent_id.len().min(8)],
+                    short_hash = &content_hash[..content_hash.len().min(16)],
+                ),
+                evolved: false,
+                reputation_gained: 0,
+            },
+
+            ExecutionEvent::OwnershipTransferred { agent_id, to_owner, .. } => Response {
+                message: format!(
+                    "Agent {short_id} has been transferred to {short_owner}.\n\
+                     Previous owner's access to private memory has been revoked.",
+                    short_id = &agent_id[..agent_id.len().min(8)],
+                    short_owner = &to_owner[..to_owner.len().min(12)],
+                ),
+                evolved: false,
+                reputation_gained: 0,
+            },
         }
     }
 }

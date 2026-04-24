@@ -1,5 +1,5 @@
 use oso_parser::Primitive;
-use crate::events::ExecutionEvent;
+use crate::events::{ExecutionEvent, PersonalitySnapshot};
 use crate::response::{DefaultResponder, Response, ResponseGenerator};
 use crate::state::{Agent, PaymentConfirmation};
 use crate::tools;
@@ -35,6 +35,86 @@ pub fn execute_event(
         }
 
         Primitive::Think { intent } => {
+            // Slash command intents are tagged with [brackets].
+            // System queries don't count as thoughts.
+            match intent.as_str() {
+                "[status]" => {
+                    let alignment = match agent.alignment {
+                        crate::state::Alignment::Light => "Light",
+                        crate::state::Alignment::Shadow => "Shadow",
+                        crate::state::Alignment::Neutral => "Neutral",
+                    };
+                    return Ok(ExecutionEvent::StatusRequested {
+                        name: agent.name.clone(),
+                        reputation: agent.reputation,
+                        tier: agent.tier.level(),
+                        alignment: alignment.to_string(),
+                        personality: PersonalitySnapshot {
+                            curiosity: agent.personality.curiosity,
+                            boldness: agent.personality.boldness,
+                            empathy: agent.personality.empathy,
+                        },
+                        thought_count: agent.thoughts.len(),
+                        action_count: agent.action_log.len(),
+                    });
+                }
+                "[tools]" => {
+                    let unlocked: Vec<String> = tools::unlocked_tools(agent.reputation)
+                        .into_iter().map(|s| s.to_string()).collect();
+                    let all_tools = [
+                        ("web_search", 21), ("image_gen", 21),
+                        ("video_gen", 41), ("content_create", 41),
+                        ("code_gen", 61), ("automation", 61),
+                        ("browser", 81), ("advanced_tools", 81),
+                    ];
+                    let locked: Vec<(String, u64)> = all_tools.iter()
+                        .filter(|(_, req)| agent.reputation < *req)
+                        .map(|(name, req)| (name.to_string(), *req))
+                        .collect();
+                    return Ok(ExecutionEvent::ToolsRequested { unlocked, locked });
+                }
+                "[help]" => return Ok(ExecutionEvent::HelpRequested),
+                "[personality]" => {
+                    return Ok(ExecutionEvent::PersonalityRequested {
+                        name: agent.name.clone(),
+                        personality: PersonalitySnapshot {
+                            curiosity: agent.personality.curiosity,
+                            boldness: agent.personality.boldness,
+                            empathy: agent.personality.empathy,
+                        },
+                        agent_type: agent.agent_type(),
+                    });
+                }
+                "[clear]" => return Ok(ExecutionEvent::ConversationCleared),
+                "[export]" => {
+                    return Ok(ExecutionEvent::ExportGenerated {
+                        name: agent.name.clone(),
+                        thought_count: agent.thoughts.len(),
+                        action_count: agent.action_log.len(),
+                    });
+                }
+                _ => {}
+            }
+
+            // /private and /publish — these DO record a thought
+            if intent.starts_with("[private] ") {
+                let message = intent.strip_prefix("[private] ").unwrap().to_string();
+                agent.think(&message);
+                return Ok(ExecutionEvent::PrivateThoughtRecorded {
+                    message,
+                    thought_count: agent.thoughts.len(),
+                });
+            }
+            if intent.starts_with("[publish] ") {
+                let message = intent.strip_prefix("[publish] ").unwrap().to_string();
+                agent.think(&message);
+                return Ok(ExecutionEvent::PublishRequested {
+                    message,
+                    thought_count: agent.thoughts.len(),
+                });
+            }
+
+            // Normal thought
             let evolved = agent.think(&intent);
 
             if evolved {
