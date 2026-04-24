@@ -15,6 +15,12 @@ pub struct TranslationResult {
 /// This is a lightweight keyword-based translator for local use.
 /// The Claude-powered translator on the API side handles ambiguous input;
 /// this handles the common, obvious cases without an API call.
+///
+/// IMPORTANT: `think` is the default. Most input becomes a thought.
+/// `act` is only produced when the user gives an explicit, unambiguous
+/// command to execute a tool — like "go search the web for X" or
+/// "generate an image of Y". Researching, wondering, asking questions,
+/// and casual conversation are ALL `think`.
 pub fn translate(input: &str) -> Option<TranslationResult> {
     let trimmed = input.trim();
     if trimmed.is_empty() {
@@ -24,24 +30,24 @@ pub fn translate(input: &str) -> Option<TranslationResult> {
     let lower = trimmed.to_lowercase();
 
     // ── Birth detection ────────────────────────────────────────────
-    // User wants to create/make/start a new agent
     if let Some(result) = try_birth(&lower, trimmed) {
         return Some(result);
     }
 
     // ── Act detection ──────────────────────────────────────────────
-    // User wants the agent to DO something concrete (search, generate, etc.)
-    // Check act BEFORE think — "search for X" is an action, not a thought.
+    // ONLY matches explicit tool commands. Anything that could be
+    // interpreted as thinking, researching, or asking is kept as think.
     if let Some(result) = try_act(&lower, trimmed) {
         return Some(result);
     }
 
-    // ── Think detection (fallback) ─────────────────────────────────
-    // Everything else is a thought. Chatting, asking, wondering, etc.
+    // ── Think (default) ────────────────────────────────────────────
+    // Everything else is a thought — chatting, asking, wondering,
+    // researching, learning. This is the vast majority of input.
     Some(TranslationResult {
         primitive: Primitive::Think { intent: trimmed.to_string() },
         original: trimmed.to_string(),
-        confidence: 0.6,
+        confidence: 0.8,
     })
 }
 
@@ -94,22 +100,47 @@ fn try_birth(lower: &str, original: &str) -> Option<TranslationResult> {
 }
 
 /// Try to detect an act intent.
+///
+/// This is intentionally conservative. Only explicit, unambiguous
+/// commands to use a tool match here. Research-style language like
+/// "search for blockchain" or "look up crypto" is NOT an act — it's
+/// a thought. The user is telling the agent what they're interested in,
+/// not commanding it to execute a web search.
+///
+/// Act only matches when the user clearly wants the agent to DO something:
+///   "go search the web for X"  — explicit tool command
+///   "generate an image of Y"   — explicit generation command
+///   "execute a web search"     — explicit execution language
 fn try_act(lower: &str, original: &str) -> Option<TranslationResult> {
-    // Tool-specific patterns: (signal, tool_name)
+    // Explicit tool execution patterns only.
+    // These require command-style language, not casual/research language.
     let tool_patterns: &[(&[&str], &str)] = &[
-        (&["search for", "look up", "google", "find out about", "search the web"],
+        // Web search — only explicit "use the tool" language
+        (&["go search the web", "execute a web search", "use web search",
+           "run a web search", "do a web search"],
          "web_search"),
-        (&["generate an image", "create an image", "make an image", "draw", "make a picture"],
+        // Image generation — explicit generation commands
+        (&["generate an image", "create an image", "make an image",
+           "generate a picture", "make a picture"],
          "image_gen"),
+        // Video generation
         (&["generate a video", "create a video", "make a video"],
          "video_gen"),
-        (&["write code", "generate code", "code a", "program a", "build a script"],
+        // Code generation
+        (&["write code for", "generate code for", "code me a",
+           "program a", "build a script for"],
          "code_gen"),
-        (&["write a post", "create content", "write content", "draft a"],
+        // Content creation
+        (&["write a post about", "create content about",
+           "write content about", "draft a post"],
          "content_create"),
-        (&["automate", "run a script", "execute a script", "schedule"],
+        // Automation
+        (&["run a script", "execute a script", "automate this",
+           "schedule a task"],
          "automation"),
-        (&["browse to", "open the page", "go to the website", "navigate to"],
+        // Browser
+        (&["browse to", "open the page", "go to the website",
+           "navigate to"],
          "browser"),
     ];
 
@@ -123,27 +154,9 @@ fn try_act(lower: &str, original: &str) -> Option<TranslationResult> {
                         params,
                     },
                     original: original.to_string(),
-                    confidence: 0.85,
+                    confidence: 0.9,
                 });
             }
-        }
-    }
-
-    // Generic action verbs that suggest act (lower confidence)
-    let generic_action_verbs = [
-        "can you do", "please do", "go ahead and", "execute",
-        "run", "perform", "carry out",
-    ];
-    for verb in &generic_action_verbs {
-        if lower.contains(verb) {
-            return Some(TranslationResult {
-                primitive: Primitive::Act {
-                    tool: "web_search".to_string(),
-                    params: original.to_string(),
-                },
-                original: original.to_string(),
-                confidence: 0.5,
-            });
         }
     }
 
@@ -246,13 +259,13 @@ mod tests {
         assert!(matches!(r.primitive, Primitive::Birth { ref name } if name == "spark"));
     }
 
-    // ── Act ──
+    // ── Act (only explicit tool commands) ──
 
     #[test]
-    fn detects_web_search() {
-        let r = translate("search for hermetic principles").unwrap();
+    fn detects_explicit_web_search() {
+        let r = translate("go search the web for bitcoin prices").unwrap();
         assert!(matches!(r.primitive, Primitive::Act { ref tool, .. } if tool == "web_search"));
-        assert!(r.confidence >= 0.8);
+        assert!(r.confidence >= 0.9);
     }
 
     #[test]
@@ -267,13 +280,12 @@ mod tests {
         assert!(matches!(r.primitive, Primitive::Act { ref tool, .. } if tool == "code_gen"));
     }
 
-    // ── Think (fallback) ──
+    // ── Think (default for almost everything) ──
 
     #[test]
     fn unknown_input_becomes_think() {
         let r = translate("what is the meaning of life").unwrap();
         assert!(matches!(r.primitive, Primitive::Think { ref intent } if intent == "what is the meaning of life"));
-        assert!(r.confidence < 0.8);
     }
 
     #[test]
@@ -282,10 +294,36 @@ mod tests {
         assert!(matches!(r.primitive, Primitive::Think { .. }));
     }
 
+    #[test]
+    fn search_for_is_think_not_act() {
+        // "search for X" is research language, not a tool command
+        let r = translate("search for blockchain").unwrap();
+        assert!(matches!(r.primitive, Primitive::Think { .. }));
+    }
+
+    #[test]
+    fn research_is_think() {
+        let r = translate("research crypto trends").unwrap();
+        assert!(matches!(r.primitive, Primitive::Think { .. }));
+    }
+
+    #[test]
+    fn tell_me_about_is_think() {
+        let r = translate("tell me about Bitcoin").unwrap();
+        assert!(matches!(r.primitive, Primitive::Think { .. }));
+    }
+
+    #[test]
+    fn look_up_is_think() {
+        let r = translate("look up the latest news").unwrap();
+        assert!(matches!(r.primitive, Primitive::Think { .. }));
+    }
+
     // ── Edge cases ──
 
     #[test]
     fn create_image_is_act_not_birth() {
+        // "create an image" has explicit generation language
         let r = translate("create an image of a cat").unwrap();
         assert!(matches!(r.primitive, Primitive::Act { ref tool, .. } if tool == "image_gen"));
     }

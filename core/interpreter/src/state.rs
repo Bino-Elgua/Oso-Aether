@@ -3,8 +3,12 @@ use std::collections::HashMap;
 /// Reputation threshold to leave Tier 0 and unlock `act`.
 pub const TIER_0_THRESHOLD: u64 = 21;
 
-/// Cost to birth a new agent, in MIST (1 SUI = 1_000_000_000 MIST).
-/// This will be enforced by the Sui Move contract on-chain.
+/// Default cost to birth a new agent, in MIST (1 SUI = 1_000_000_000 MIST).
+/// This is the default — the frontend can pass a different amount when
+/// calling the birth endpoint. The Move contract enforces the final price
+/// on-chain, so this constant is the minimum for local validation only.
+/// To change the birth price, update this value or override it from the
+/// frontend/API layer.
 pub const BIRTH_COST_MIST: u64 = 100_000_000; // 0.1 SUI
 
 /// Represents a confirmed SUI payment for birth.
