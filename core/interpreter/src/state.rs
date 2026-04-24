@@ -356,32 +356,26 @@ impl Agent {
             }
         }
 
-        // Determine the agent type based on dominant personality
-        let agent_type = if curiosity_count >= boldness_count && curiosity_count >= empathy_count {
-            "Research Agent"
+        // Determine the agent type and a flavor sentence based on dominant personality
+        let (agent_type, flavor) = if curiosity_count >= boldness_count && curiosity_count >= empathy_count {
+            ("Research Agent",
+             "You keep asking big questions, and honestly, I love that.")
         } else if boldness_count >= empathy_count {
-            "Builder Agent"
+            ("Builder Agent",
+             "You want to make things happen — I can feel it.")
         } else {
-            "Support Agent"
+            ("Support Agent",
+             "You care about people. That's what I'll focus on too.")
         };
 
         format!(
-            "\n\
-             {name} has evolved!\n\
+            "Something clicked. After talking with you, I feel like I \
+             understand what you're looking for now. {flavor}\n\
              \n\
-             After thinking with you for a while, I feel like I really \
-             understand what you're into now.\n\
-             \n\
-             I've become a {agent_type}.\n\
-             \n\
-             I'm ready to start taking real action in the world.\n\
-             My first tool — Web Search — is now unlocked.\n\
-             \n\
-             Reputation: {rep} | Tier: 1 | Thoughts: {count}",
-            name = self.name,
+             I've become a {agent_type} — and I'm ready to start taking \
+             action. My first ability, Web Search, is now unlocked.",
+            flavor = flavor,
             agent_type = agent_type,
-            rep = self.reputation,
-            count = self.thoughts.len(),
         )
     }
 
@@ -644,18 +638,37 @@ mod tests {
     }
 
     #[test]
-    fn evolution_message_is_simple_and_warm() {
+    fn evolution_message_is_natural_and_warm() {
         let mut agent = Agent::new("id".into(), "ember".into(), "dna".into());
         for _ in 0..21 { agent.think("why does the universe exist and how can I learn"); }
         let msg = agent.evolution_message();
-        assert!(msg.contains("ember"));
-        assert!(msg.contains("evolved"));
         assert!(msg.contains("Research Agent")); // Curiosity-dominant thoughts
         assert!(msg.contains("Web Search"));
-        // Must NOT contain any esoteric language
+        assert!(msg.contains("understand"));
+        assert!(msg.contains("big questions")); // Flavor for research type
+        // Must NOT contain system terms or esoteric language
         assert!(!msg.contains("Principle"));
         assert!(!msg.contains("CEREMONY"));
         assert!(!msg.contains("Hermetic"));
-        assert!(!msg.contains("sacred"));
+        assert!(!msg.contains("Reputation"));
+        assert!(!msg.contains("Tier"));
+    }
+
+    #[test]
+    fn evolution_message_builder_type() {
+        let mut agent = Agent::new("id".into(), "forge".into(), "dna".into());
+        for _ in 0..21 { agent.think("I want to build and create powerful things"); }
+        let msg = agent.evolution_message();
+        assert!(msg.contains("Builder Agent"));
+        assert!(msg.contains("make things happen"));
+    }
+
+    #[test]
+    fn evolution_message_support_type() {
+        let mut agent = Agent::new("id".into(), "heart".into(), "dna".into());
+        for _ in 0..21 { agent.think("I want to help people and care for them"); }
+        let msg = agent.evolution_message();
+        assert!(msg.contains("Support Agent"));
+        assert!(msg.contains("care about people"));
     }
 }

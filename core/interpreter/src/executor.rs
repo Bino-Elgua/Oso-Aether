@@ -3,6 +3,40 @@ use crate::state::{Agent, PaymentConfirmation};
 use crate::tools;
 use anyhow::{bail, Result};
 
+/// Pick a birth greeting using simple hash-based selection (no rng dependency).
+fn birth_greeting(name: &str) -> String {
+    let variants = [
+        format!(
+            "Hi. I'm {name}. I don't really know what I am yet — \
+             what do you need me to be?"
+        ),
+        format!(
+            "Hey, I'm {name}. I'm starting from nothing here. \
+             Tell me — what should I become for you?"
+        ),
+        format!(
+            "I'm {name}. I'm listening, but I don't have a purpose yet. \
+             What am I here to do?"
+        ),
+    ];
+    let index = name.bytes().fold(0u32, |acc, b| acc.wrapping_add(b as u32)) as usize % variants.len();
+    variants[index].clone()
+}
+
+/// Return a gentle progress hint at every 5th thought in Tier 0.
+fn tier0_progress_hint(thought_count: usize) -> Option<&'static str> {
+    if thought_count == 0 || thought_count % 5 != 0 {
+        return None;
+    }
+    match thought_count {
+        5 => Some("I'm starting to get a feel for what you're about."),
+        10 => Some("The more we talk, the clearer things get for me."),
+        15 => Some("I feel like I'm almost ready for something bigger."),
+        20 => Some("I think I'm nearly there. Just a little more."),
+        _ => None,
+    }
+}
+
 /// Result of executing a primitive.
 #[derive(Debug)]
 pub struct ExecutionResult {
@@ -50,10 +84,7 @@ pub fn execute(
             }
 
             Ok(ExecutionResult {
-                output: format!(
-                    "Hi. I'm {name}. I don't really know what I am yet — \
-                     what do you need me to be?"
-                ),
+                output: birth_greeting(&name),
                 evolved: false,
                 reputation_gained: 0,
             })
@@ -64,36 +95,32 @@ pub fn execute(
         // [GENDER] Receptive energy — quiet, steady accumulation (1 rep).
         // [POLARITY] Thoughts can be light or shadow. Both are recorded.
         Primitive::Think { intent } => {
+            let thought_count_before = agent.thoughts.len();
             let evolved = agent.think(&intent);
 
             if evolved {
                 let evolution_msg = agent.evolution_message();
 
                 Ok(ExecutionResult {
-                    output: format!(
-                        "Got it: \"{intent}\"\n\
-                         Reputation: {rep}\n\
-                         {evolution_msg}",
-                        rep = agent.reputation,
-                    ),
+                    output: evolution_msg,
                     evolved: true,
                     reputation_gained: 1,
                 })
             } else {
-                let remaining = if agent.reputation < crate::state::TIER_0_THRESHOLD {
-                    let left = crate::state::TIER_0_THRESHOLD - agent.reputation;
-                    format!(" | {left} more to go")
+                // In Tier 0, show gentle progress hints every 5 thoughts
+                let hint = if agent.reputation < crate::state::TIER_0_THRESHOLD {
+                    tier0_progress_hint(thought_count_before + 1)
                 } else {
-                    String::new()
+                    None
+                };
+
+                let output = match hint {
+                    Some(h) => format!("Got it.\n{h}"),
+                    None => "Got it.".to_string(),
                 };
 
                 Ok(ExecutionResult {
-                    output: format!(
-                        "Got it: \"{intent}\"\n\
-                         Reputation: {rep} | Tier: {tier}{remaining}",
-                        rep = agent.reputation,
-                        tier = agent.tier.level(),
-                    ),
+                    output,
                     evolved: false,
                     reputation_gained: 1,
                 })
@@ -109,15 +136,8 @@ pub fn execute(
         Primitive::Act { tool, params } => {
             if !agent.can_act() {
                 bail!(
-                    "{name} can't use tools yet.\n\
-                     \n\
-                     You're at {rep}/{threshold} reputation. Keep chatting \
-                     to build experience — you need {remaining} more before \
-                     tools unlock.",
-                    name = agent.name,
-                    rep = agent.reputation,
-                    threshold = crate::state::TIER_0_THRESHOLD,
-                    remaining = crate::state::TIER_0_THRESHOLD.saturating_sub(agent.reputation),
+                    "I'm not ready for that yet. I'm still figuring out \
+                     who I am — let's keep talking a bit more and I'll get there."
                 );
             }
 
@@ -176,7 +196,7 @@ mod tests {
     }
 
     #[test]
-    fn birth_shows_warm_intro() {
+    fn birth_shows_warm_intro_with_name() {
         let mut agent = test_agent();
         let payment = valid_payment();
         let result = execute(
@@ -191,9 +211,28 @@ mod tests {
         // Must NOT mention system internals or esoteric language
         assert!(!result.output.contains("reputation"));
         assert!(!result.output.contains("Tier"));
-        assert!(!result.output.contains("tool"));
         assert!(!result.output.contains("Hermetic"));
         assert!(!result.output.contains("soul"));
+    }
+
+    #[test]
+    fn birth_uses_actual_name() {
+        let mut agent = Agent::new("id".into(), "nova".into(), "dna".into());
+        let payment = valid_payment();
+        let result = execute(
+            Primitive::Birth { name: "nova".into() },
+            &mut agent,
+            Some(&payment),
+        ).unwrap();
+        assert!(result.output.contains("nova"));
+
+        let mut agent2 = Agent::new("id".into(), "blaze".into(), "dna".into());
+        let result2 = execute(
+            Primitive::Birth { name: "blaze".into() },
+            &mut agent2,
+            Some(&payment),
+        ).unwrap();
+        assert!(result2.output.contains("blaze"));
     }
 
     #[test]
@@ -239,7 +278,7 @@ mod tests {
     }
 
     #[test]
-    fn act_rejected_in_tier_0_with_simple_message() {
+    fn act_rejected_in_tier_0_with_friendly_message() {
         let mut agent = test_agent();
         let err = execute(
             Primitive::Act { tool: "web_search".into(), params: "test".into() },
@@ -247,10 +286,12 @@ mod tests {
             None,
         ).unwrap_err().to_string();
 
-        assert!(err.contains("can't use tools yet"));
-        assert!(err.contains("reputation"));
+        assert!(err.contains("not ready"));
+        assert!(err.contains("keep talking"));
+        // Must NOT mention system internals
+        assert!(!err.contains("reputation"));
+        assert!(!err.contains("Tier"));
         assert!(!err.contains("Mentalism"));
-        assert!(!err.contains("Principle"));
     }
 
     #[test]
@@ -317,12 +358,15 @@ mod tests {
         ).unwrap();
 
         assert!(result.evolved);
-        assert!(result.output.contains("evolved"));
         assert!(result.output.contains("Web Search"));
+        assert!(result.output.contains("understand"));
         assert!(agent.can_act());
+        // Must NOT contain system terms or esoteric language
         assert!(!result.output.contains("CEREMONY"));
         assert!(!result.output.contains("Principle"));
         assert!(!result.output.contains("Hermetic"));
+        assert!(!result.output.contains("Reputation"));
+        assert!(!result.output.contains("Tier"));
     }
 
     #[test]
@@ -335,8 +379,49 @@ mod tests {
         ).unwrap();
 
         assert!(result.output.contains("Got it"));
-        assert!(result.output.contains("Reputation: 1"));
+        // Must NOT contain system terms
+        assert!(!result.output.contains("Reputation"));
+        assert!(!result.output.contains("Tier"));
         assert!(!result.output.contains("inscribed"));
-        assert!(!result.output.contains("awakening"));
+    }
+
+    #[test]
+    fn think_shows_progress_hint_at_5() {
+        let mut agent = test_agent();
+        for i in 0..4 {
+            let r = execute(
+                Primitive::Think { intent: format!("thought {}", i) },
+                &mut agent,
+                None,
+            ).unwrap();
+            // First 4 should NOT have a hint
+            assert_eq!(r.output, "Got it.");
+        }
+        // 5th thought should include a hint
+        let r = execute(
+            Primitive::Think { intent: "thought 4".into() },
+            &mut agent,
+            None,
+        ).unwrap();
+        assert!(r.output.contains("Got it."));
+        assert!(r.output.contains("starting to get a feel"));
+    }
+
+    #[test]
+    fn think_shows_progress_hint_at_10() {
+        let mut agent = test_agent();
+        for i in 0..9 {
+            execute(
+                Primitive::Think { intent: format!("t{}", i) },
+                &mut agent,
+                None,
+            ).unwrap();
+        }
+        let r = execute(
+            Primitive::Think { intent: "t9".into() },
+            &mut agent,
+            None,
+        ).unwrap();
+        assert!(r.output.contains("clearer things get"));
     }
 }
