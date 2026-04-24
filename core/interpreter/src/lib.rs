@@ -1,12 +1,16 @@
+pub mod events;
 pub mod executor;
+pub mod response;
 pub mod state;
 pub mod tools;
 pub mod translator;
 
-pub use executor::{execute, ExecutionResult};
+pub use events::{AgentType, ExecutionEvent};
+pub use executor::{execute, execute_event};
+pub use response::{DefaultResponder, Response, ResponseGenerator};
 pub use state::{
     ActionReceipt, Agent, Alignment, DecayEvent, Personality,
     PaymentConfirmation, Tier, BIRTH_COST_MIST, HERMETIC_PRINCIPLES, TIER_0_THRESHOLD,
 };
-pub use tools::{check_tool_access, unlocked_tools};
+pub use tools::{check_tool_access, tool_reputation_requirement, unlocked_tools};
 pub use translator::{translate, TranslationResult};

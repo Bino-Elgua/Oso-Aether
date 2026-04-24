@@ -327,12 +327,9 @@ impl Agent {
         });
     }
 
-    /// Generate the evolution message when leaving Tier 0.
-    ///
-    /// Analyzes the agent's accumulated thoughts to determine what kind
-    /// of agent it has become, then presents a simple, warm message.
-    pub fn evolution_message(&self) -> String {
-        // Analyze thought themes to determine agent type
+    /// Analyze accumulated thoughts to determine what kind of agent this became.
+    /// Returns a structured AgentType — no prose, no flavor text.
+    pub fn agent_type(&self) -> crate::events::AgentType {
         let mut curiosity_count = 0u32;
         let mut boldness_count = 0u32;
         let mut empathy_count = 0u32;
@@ -356,27 +353,13 @@ impl Agent {
             }
         }
 
-        // Determine the agent type and a flavor sentence based on dominant personality
-        let (agent_type, flavor) = if curiosity_count >= boldness_count && curiosity_count >= empathy_count {
-            ("Research Agent",
-             "You keep asking big questions, and honestly, I love that.")
+        if curiosity_count >= boldness_count && curiosity_count >= empathy_count {
+            crate::events::AgentType::Research
         } else if boldness_count >= empathy_count {
-            ("Builder Agent",
-             "You want to make things happen — I can feel it.")
+            crate::events::AgentType::Builder
         } else {
-            ("Support Agent",
-             "You care about people. That's what I'll focus on too.")
-        };
-
-        format!(
-            "Something clicked. After talking with you, I feel like I \
-             understand what you're looking for now. {flavor}\n\
-             \n\
-             I've become a {agent_type} — and I'm ready to start taking \
-             action. My first ability, Web Search, is now unlocked.",
-            flavor = flavor,
-            agent_type = agent_type,
-        )
+            crate::events::AgentType::Support
+        }
     }
 
     /// [POLARITY] Shift alignment based on thought content.
@@ -638,37 +621,23 @@ mod tests {
     }
 
     #[test]
-    fn evolution_message_is_natural_and_warm() {
+    fn agent_type_research() {
         let mut agent = Agent::new("id".into(), "ember".into(), "dna".into());
         for _ in 0..21 { agent.think("why does the universe exist and how can I learn"); }
-        let msg = agent.evolution_message();
-        assert!(msg.contains("Research Agent")); // Curiosity-dominant thoughts
-        assert!(msg.contains("Web Search"));
-        assert!(msg.contains("understand"));
-        assert!(msg.contains("big questions")); // Flavor for research type
-        // Must NOT contain system terms or esoteric language
-        assert!(!msg.contains("Principle"));
-        assert!(!msg.contains("CEREMONY"));
-        assert!(!msg.contains("Hermetic"));
-        assert!(!msg.contains("Reputation"));
-        assert!(!msg.contains("Tier"));
+        assert_eq!(agent.agent_type(), crate::events::AgentType::Research);
     }
 
     #[test]
-    fn evolution_message_builder_type() {
+    fn agent_type_builder() {
         let mut agent = Agent::new("id".into(), "forge".into(), "dna".into());
         for _ in 0..21 { agent.think("I want to build and create powerful things"); }
-        let msg = agent.evolution_message();
-        assert!(msg.contains("Builder Agent"));
-        assert!(msg.contains("make things happen"));
+        assert_eq!(agent.agent_type(), crate::events::AgentType::Builder);
     }
 
     #[test]
-    fn evolution_message_support_type() {
+    fn agent_type_support() {
         let mut agent = Agent::new("id".into(), "heart".into(), "dna".into());
         for _ in 0..21 { agent.think("I want to help people and care for them"); }
-        let msg = agent.evolution_message();
-        assert!(msg.contains("Support Agent"));
-        assert!(msg.contains("care about people"));
+        assert_eq!(agent.agent_type(), crate::events::AgentType::Support);
     }
 }
