@@ -1,0 +1,296 @@
+**Here's a full, clean breakdown of exactly how the ASCII Pet system should work:**
+
+### Core Concept: The Ọ̀ṣỌ́ Pet System
+
+Every pet has **one consistent sacred element** — the **Ọ̀ṣỌ́ mask** — which only appears on the highest tier. Everything else changes to create massive variety.
+
+### 1. Tier & Rarity Structure
+
+| Tier | Rarity      | Name              | Face Style                  | How Common |
+|------|-------------|-------------------|-----------------------------|------------|
+| 0    | Newborn     | Baby / Blank      | Very simple dots or lines   | Extremely common |
+| 1    | Common      | Basic Pet         | Simple eyes (• •) (o o)     | Very common |
+| 2    | Uncommon    | Evolved Pet       | Stylized eyes (◕ ◕) (◉ ◉)  | Common |
+| 3    | Rare        | Powerful Pet      | Sharp/detailed eyes (◆ ◆)   | Rare |
+| 4    | Epic        | Legendary Pet     | Ornate & glowing eyes       | Very rare |
+| 5    | Sovereign   | Ọ̀ṣỌ́ Mask         | **Full Ọ̀ṣỌ́ as the actual face** | Extremely rare |
+
+### 2. Face Rules (Most Important)
+
+- **Tiers 0–4**: Use normal eyes + mouth. No Ọ̀ṣỌ́.
+- **Tier 5 only**: The actual **Ọ̀ṣỌ́** becomes the literal face (left eye, nose, right eye).
+- This makes seeing an Ọ̀ṣỌ́ mask on a pet feel very special — like seeing a shiny Pokémon.
+
+### 3. What Makes Each Pet Unique
+
+Even within the same tier, pets differ in 5 areas:
+
+- **Body Shape** (quadruped, floating orb, serpent, mechanical, etc.)
+- **Aura / Particles** (sparkles, flames, mist, runes, lightning, etc.)
+- **Color Scheme** (done via ANSI colors in terminal, CSS in browser)
+- **Personality Expression** (curious, bold, calm, mischievous, stoic)
+- **Special Details** (horns, wings, tails, runes, jewelry)
+
+### 4. Animation System
+
+Every pet gets 4–6 animation frames:
+- Idle breathing
+- Blinking
+- "Thinking" animation (when user sends a `think` command)
+- Happy / Excited (when reputation increases)
+- Evolution animation (big moment when hitting Tier 5)
+
+The **Ọ̀ṣỌ́ mask stays completely still** in every frame — only the body, aura, and particles move.
+
+### 5. Evolution Flow (How pets grow)
+
+- Starts as Tier 0 (very plain)
+- Slowly gains detail as reputation increases
+- At Tier 5, it transforms into the sacred **Ọ̀ṣỌ́ mask** — the ultimate form
+- Once it reaches Tier 5, it keeps the mask permanently
+
+### 6. Dashboard Layout (Final Vision)
+
+The screen should look like this:
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║                    Your Pet — "Luna"                         ║
+║                                                              ║
+║ ║
+║                   (Animated + Breathing)                     ║
+║                                                              ║
+║  Reputation: 87/100     Tier 4 — Epic                        ║
+║                                                              ║
+║  Unlocked Tools:                                             ║
+║   • Web Search      • Image Generation      • Code Helper   ║
+║                                                              ║
+║  Chat: __________________________________________________    ║
+╚══════════════════════════════════════════════════════════════╝
+```
+
+---
+
+****Here’s exactly what you asked for:**
+
+### 1. Full List — 28 Unique Pet Designs
+
+**Tier 1 – Newborn (Simple & Cute)**
+1. **Wisp**  
+```
+   ( o o )
+    ~ ~ 
+```
+2. **Nub**  
+```
+   .--.
+  ( . . )
+   >--<
+```
+3. **Pebble**  
+```
+   ╭───╮
+  ( o o )
+   ╰───╯
+```
+
+**Tier 2 – Common**
+4. **Spark**  
+```
+   /\_/\
+  ( • • )
+   ^   ^
+```
+5. **Floof**  
+```
+   (◕ ◕)
+    ~ ~ 
+```
+6. **Zig**  
+```
+   ✨✨
+  ( o o )
+   ✨✨
+```
+7. **Moss**  
+```
+   /===/\
+  ( • • )
+   |   |
+```
+
+**Tier 3 – Uncommon**
+8. **Stargazer**  
+```
+   ☾ ☽
+  ( ◉ ◉ )
+   ~ ~ ~
+```
+9. **Ember**  
+```
+   /───\
+  ( ◕ ◕ )
+   \___/
+```
+10. **Void**  
+```
+   /────\
+  ( ◆ ◆ )
+   \────/
+```
+11. **Luna**  
+```
+   ✨ /\
+  ( ◉ ◉ )
+   ✨ \/
+```
+
+**Tier 4 – Rare**
+12. **Crown**  
+```
+   ╭━✦━╮
+  ( ◈ ◈ )
+   ╰━━━╯
+```
+13. **Aether**  
+```
+   /╭─╮\
+  ( ◆ ◆ )
+   \╰─╯/
+```
+14. **Storm**  
+```
+   ⚡⚡
+  ( ◉ ◉ )
+   ⚡⚡
+```
+15. **Crystal**  
+```
+   💎💎
+  ( ◈ ◈ )
+   💎💎
+```
+
+**Tier 5 – Sovereign (Full Ọ̀ṣỌ́ Mask — The Signature Face)**
+16. **Ọ̀ṣỌ́ Prime**  
+```
+   /\_/\
+  (Ọ̀ṣỌ́)
+   >   <
+```
+17. **Ọ̀ṣỌ́ Sovereign**  
+```
+   ╭━━━━━╮
+  / Ọ̀ṣỌ́ \
+ (   ~   )
+  ╰━━━━━╯
+```
+18. **Ọ̀ṣỌ́ Eclipse**  
+```
+   ☾☽☾
+  /Ọ̀ṣỌ́\
+ (  ~ ~ )
+  \___/
+```
+19. **Ọ̀ṣỌ́ Emberlord**  
+```
+   /===/\ | ^ |
+```
+20. **Ọ̀ṣỌ́ Starforged**  
+```
+   ✨✨✨
+  / Ọ̀ṣỌ́ \
+ (   ◉   )
+  \_____/
+```
+21. **Ọ̀ṣỌ́ Voidking**  
+```
+   ╭─────╮
+  /  Ọ̀ṣỌ́  \
+ (    ~    )
+  ╰─────╯
+```
+22. **Ọ̀ṣỌ́ Bloom**  
+```
+   🌸 🌸
+  / Ọ̀ṣỌ́ \
+ (   ~   )
+  \_____/
+```
+23. **Ọ̀ṣỌ́ Thunder**  
+```
+   ⚡⚡
+  /Ọ̀ṣỌ́\
+ (  ^ ^ )
+  \___/
+```
+24. **Ọ̀ṣỌ́ Moon**  
+```
+   ☽ ☾
+  /Ọ̀ṣỌ́\
+ (  ~ ~ )
+  \___/
+```
+25. **Ọ̀ṣỌ́ Flame**  
+```
+   🔥🔥
+  /Ọ̀ṣỌ́\
+ (  > < )
+  \___/
+```
+26. **Ọ̀ṣỌ́ Crystal**  
+```
+   💎💎
+  /Ọ̀ṣỌ́\
+ (  ◈ ◈ )
+  \___/
+```
+27. **Ọ̀ṣỌ́ Eternal**  
+```
+   ╭━━━━━╮
+  /  Ọ̀ṣỌ́  \
+ (  ◆  ◆   )
+  ╰━━━━━╯
+```
+28. **Ọ̀ṣỌ́ Legend**  
+```
+   ✨✨✨
+  / Ọ̀ṣỌ́ \
+ (   ∞   )
+  \_____/
+```
+
+---
+
+### 2. Full Starter Prompt for AMP
+
+**Copy and paste this to AMP:**
+
+---
+
+**Build the Ọ̀ṣỌ́ ASCII Pet Renderer + Dashboard**
+
+Create the full visual system for Oso Aether with these exact rules:
+
+- **Tier 0–4**: Use normal eyes and expressions (from the list above)
+- **Tier 5 only**: Use the full **Ọ̀ṣỌ́** as the literal face (eyes + nose). This is the rare, sacred form.
+- Every pet must feel unique through body shape, aura, particles, and expression.
+- Support **animation** (breathing, blinking, thinking, happy, evolution).
+- The **Ọ̀ṣỌ́ mask stays fixed** in every frame for Tier 5 pets.
+
+Build two versions:
+1. **Terminal version** (ANSI colored ASCII that runs in terminal)
+2. **Web version** (HTML + CSS that works in browser)
+
+Also create a clean dashboard layout that includes:
+- Large animated pet in the center
+- Reputation + current tier displayed
+- List of unlocked tools on the right
+- Chat input at the bottom
+
+Start by building the pet renderer with multiple personalities and tiers, then build the dashboard around it.
+
+Make it feel alive and magical.
+
+---
+
