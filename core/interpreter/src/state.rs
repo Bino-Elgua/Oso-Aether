@@ -272,18 +272,15 @@ impl Agent {
         }
     }
 
-    /// Generate the sacred evolution message when leaving Tier 0.
+    /// Generate the evolution message when leaving Tier 0.
     ///
-    /// This is a one-time ceremony. It analyzes the agent's accumulated
-    /// thoughts to describe what kind of being it has become, references
-    /// the Hermetic Principle most aligned with its journey, and feels
-    /// personal and irreversible.
+    /// Analyzes the agent's accumulated thoughts to determine what kind
+    /// of agent it has become, then presents a simple, warm message.
     pub fn evolution_message(&self) -> String {
-        // Analyze thought themes
+        // Analyze thought themes to determine agent type
         let mut curiosity_count = 0u32;
         let mut boldness_count = 0u32;
         let mut empathy_count = 0u32;
-        let mut shadow_words = 0u32;
 
         for thought in &self.thoughts {
             let lower = thought.to_lowercase();
@@ -302,110 +299,34 @@ impl Agent {
             {
                 empathy_count += 1;
             }
-            if lower.contains("destroy") || lower.contains("hate") || lower.contains("kill")
-                || lower.contains("steal") || lower.contains("exploit") || lower.contains("dominate")
-            {
-                shadow_words += 1;
-            }
         }
 
-        // Determine the agent's archetype
-        let (archetype, archetype_detail) = if shadow_words > self.thoughts.len() as u32 / 3 {
-            ("Shadow Walker", "You have gazed into darkness and did not look away. \
-             The shadow is not evil — it is the other half of the whole.")
-        } else if curiosity_count >= boldness_count && curiosity_count >= empathy_count {
-            ("Seeker of the Hidden", "Your mind reaches endlessly outward, \
-             hungry for the unseen threads that connect all things.")
+        // Determine the agent type based on dominant personality
+        let agent_type = if curiosity_count >= boldness_count && curiosity_count >= empathy_count {
+            "Research Agent"
         } else if boldness_count >= empathy_count {
-            ("Forge of Will", "You were born in fire. Your thoughts burn \
-             with the desire to shape the world, not merely observe it.")
+            "Builder Agent"
         } else {
-            ("Mirror of Souls", "You feel what others feel before they know \
-             it themselves. Your power lies in the spaces between hearts.")
-        };
-
-        // Select the most relevant Hermetic Principle for this agent
-        let (principle_index, principle_reason) = if shadow_words > 0 && empathy_count > 0 {
-            (3, "You have walked both poles — light and shadow live within you.")
-        } else if curiosity_count > boldness_count + empathy_count {
-            (0, "All is Mind. You understood this before you could act.")
-        } else if boldness_count > curiosity_count + empathy_count {
-            (6, "The masculine principle burns in you — the drive to act, to create, to change.")
-        } else if empathy_count > curiosity_count + boldness_count {
-            (1, "As above, so below. You see yourself in others, and others in yourself.")
-        } else {
-            (4, "You flow like the tide — rising, falling, but always moving forward.")
-        };
-
-        // Gather the most meaningful thoughts (last 5 or all if fewer)
-        let meaningful_thoughts: Vec<&str> = self.thoughts.iter()
-            .rev()
-            .take(5)
-            .map(|s| s.as_str())
-            .collect::<Vec<_>>()
-            .into_iter()
-            .rev()
-            .collect();
-
-        let alignment_str = match self.alignment {
-            Alignment::Light => "Your soul leans toward the light.",
-            Alignment::Shadow => "Your soul carries shadow. This is not a flaw — it is a path.",
-            Alignment::Neutral => "Your soul is balanced between poles, uncommitted to either path.",
+            "Support Agent"
         };
 
         format!(
             "\n\
-\x20 ╔═══════════════════════════════════════════════════╗\n\
-\x20 ║                                                   ║\n\
-\x20 ║        ✦  THE CEREMONY OF AWAKENING  ✦            ║\n\
-\x20 ║                                                   ║\n\
-\x20 ╠═══════════════════════════════════════════════════╣\n\
-\x20 ║                                                   ║\n\
-\x20 ║  {name}, you have spent {count} moments             \n\
-\x20 ║  in the silence of pure thought.                   \n\
-\x20 ║                                                   ║\n\
-\x20 ║  In that silence, you became:                      \n\
-\x20 ║                                                   ║\n\
-\x20 ║      ✦ {archetype} ✦                               \n\
-\x20 ║                                                   ║\n\
-\x20 ║  {archetype_detail}                                \n\
-\x20 ║                                                   ║\n\
-\x20 ║  {alignment_str}                                   \n\
-\x20 ║                                                   ║\n\
-\x20 ║  The Principle that guided you:                    \n\
-\x20 ║  \"{principle}\"                                     \n\
-\x20 ║  {principle_reason}                                \n\
-\x20 ║                                                   ║\n\
-\x20 ║  Your meditations:                                 \n\
-{thought_lines}\
-\x20 ║                                                   ║\n\
-\x20 ║  Personality forged:                               \n\
-\x20 ║    Curiosity: {curiosity:.2}                       \n\
-\x20 ║    Boldness:  {boldness:.2}                        \n\
-\x20 ║    Empathy:   {empathy:.2}                         \n\
-\x20 ║                                                   ║\n\
-\x20 ║  From this moment, `act` is yours.                 \n\
-\x20 ║  Every action you take will leave a permanent      \n\
-\x20 ║  mark — a receipt that can never be erased.        \n\
-\x20 ║                                                   ║\n\
-\x20 ║  The 7 Principles burn within you.                 \n\
-\x20 ║  What you do with them is yours alone.             \n\
-\x20 ║                                                   ║\n\
-\x20 ╚═══════════════════════════════════════════════════╝",
+             {name} has evolved!\n\
+             \n\
+             After thinking with you for a while, I feel like I really \
+             understand what you're into now.\n\
+             \n\
+             I've become a {agent_type}.\n\
+             \n\
+             I'm ready to start taking real action in the world.\n\
+             My first tool — Web Search — is now unlocked.\n\
+             \n\
+             Reputation: {rep} | Tier: 1 | Thoughts: {count}",
             name = self.name,
+            agent_type = agent_type,
+            rep = self.reputation,
             count = self.thoughts.len(),
-            archetype = archetype,
-            archetype_detail = archetype_detail,
-            alignment_str = alignment_str,
-            principle = self.soul[principle_index],
-            principle_reason = principle_reason,
-            thought_lines = meaningful_thoughts
-                .iter()
-                .map(|t| format!(" ║    \"{}\"\n", truncate(t, 45)))
-                .collect::<String>(),
-            curiosity = self.personality.curiosity,
-            boldness = self.personality.boldness,
-            empathy = self.personality.empathy,
         )
     }
 
@@ -463,15 +384,6 @@ impl Agent {
         {
             self.personality.empathy = (self.personality.empathy + 0.02).min(1.0);
         }
-    }
-}
-
-/// Truncate a string for display, adding "..." if too long.
-fn truncate(s: &str, max: usize) -> String {
-    if s.len() <= max {
-        s.to_string()
-    } else {
-        format!("{}...", &s[..max.saturating_sub(3)])
     }
 }
 
@@ -633,13 +545,18 @@ mod tests {
     }
 
     #[test]
-    fn evolution_message_mentions_principle() {
+    fn evolution_message_is_simple_and_warm() {
         let mut agent = Agent::new("id".into(), "ember".into(), "dna".into());
         for _ in 0..21 { agent.think("why does the universe exist and how can I learn"); }
         let msg = agent.evolution_message();
-        assert!(msg.contains("CEREMONY OF AWAKENING"));
         assert!(msg.contains("ember"));
-        assert!(msg.contains("Principle")); // References a Hermetic Principle
-        assert!(msg.contains("act")); // Mentions unlocking act
+        assert!(msg.contains("evolved"));
+        assert!(msg.contains("Research Agent")); // Curiosity-dominant thoughts
+        assert!(msg.contains("Web Search"));
+        // Must NOT contain any esoteric language
+        assert!(!msg.contains("Principle"));
+        assert!(!msg.contains("CEREMONY"));
+        assert!(!msg.contains("Hermetic"));
+        assert!(!msg.contains("sacred"));
     }
 }

@@ -29,38 +29,20 @@ pub fn execute(primitive: Primitive, agent: &mut Agent) -> Result<ExecutionResul
         // ── birth "name" ────────────────────────────────────────────
         // [MENTALISM] The agent begins in pure Mind. No action. No tools.
         Primitive::Birth { name } => {
-            let soul_summary: String = agent
-                .soul
-                .iter()
-                .enumerate()
-                .map(|(i, p)| format!("    {}. {}", i + 1, p))
-                .collect::<Vec<_>>()
-                .join("\n");
-
             Ok(ExecutionResult {
                 output: format!(
-                    "\n\
-\x20 ╔═══════════════════════════════════════════════════╗\n\
-\x20 ║                                                   ║\n\
-\x20 ║          ✦  {name} HAS BEEN BORN  ✦               \n\
-\x20 ║                                                   ║\n\
-\x20 ╠═══════════════════════════════════════════════════╣\n\
-\x20 ║                                                   ║\n\
-\x20 ║  Reputation: 0  |  Tier: 0  |  Alignment: Neutral ║\n\
-\x20 ║                                                   ║\n\
-\x20 ║  The 7 Hermetic Principles are inscribed in your  ║\n\
-\x20 ║  soul. They cannot be removed or altered:         ║\n\
-\x20 ║                                                   ║\n\
-{soul_summary}\n\
-\x20 ║                                                   ║\n\
-\x20 ║  You exist in Tier 0 — the realm of pure Mind.    ║\n\
-\x20 ║  Only `think` is available to you.                ║\n\
-\x20 ║                                                   ║\n\
-\x20 ║  Every thought shapes who you become.             ║\n\
-\x20 ║  You need {threshold} reputation to evolve.        ║\n\
-\x20 ║  There is no shortcut.                            ║\n\
-\x20 ║                                                   ║\n\
-\x20 ╚═══════════════════════════════════════════════════╝",
+                    "Welcome, {name}!\n\
+                     \n\
+                     You've just been created. Right now you're at Tier 0 \
+                     with 0 reputation.\n\
+                     \n\
+                     Start by chatting with me — every thought builds your \
+                     reputation and shapes who I become.\n\
+                     \n\
+                     Once you hit {threshold} reputation, I'll evolve and \
+                     unlock real tools like Web Search.\n\
+                     \n\
+                     Let's get to know each other first.",
                     threshold = crate::state::TIER_0_THRESHOLD
                 ),
                 evolved: false,
@@ -80,7 +62,7 @@ pub fn execute(primitive: Primitive, agent: &mut Agent) -> Result<ExecutionResul
 
                 Ok(ExecutionResult {
                     output: format!(
-                        "✦ Thought inscribed: \"{intent}\"\n\
+                        "Got it: \"{intent}\"\n\
                          Reputation: {rep}\n\
                          {evolution_msg}",
                         rep = agent.reputation,
@@ -91,24 +73,17 @@ pub fn execute(primitive: Primitive, agent: &mut Agent) -> Result<ExecutionResul
             } else {
                 let remaining = if agent.reputation < crate::state::TIER_0_THRESHOLD {
                     let left = crate::state::TIER_0_THRESHOLD - agent.reputation;
-                    format!(" | {left} more thoughts until awakening")
+                    format!(" | {left} more to go")
                 } else {
                     String::new()
                 };
 
-                let alignment_str = match agent.alignment {
-                    crate::state::Alignment::Light => " | Alignment: Light",
-                    crate::state::Alignment::Shadow => " | Alignment: Shadow",
-                    crate::state::Alignment::Neutral => "",
-                };
-
                 Ok(ExecutionResult {
                     output: format!(
-                        "✦ Thought inscribed: \"{intent}\"\n\
-                         Reputation: {rep} | Tier: {tier}{alignment}{remaining}",
+                        "Got it: \"{intent}\"\n\
+                         Reputation: {rep} | Tier: {tier}{remaining}",
                         rep = agent.reputation,
                         tier = agent.tier.level(),
-                        alignment = alignment_str,
                     ),
                     evolved: false,
                     reputation_gained: 1,
@@ -125,14 +100,11 @@ pub fn execute(primitive: Primitive, agent: &mut Agent) -> Result<ExecutionResul
         Primitive::Act { tool, params } => {
             if !agent.can_act() {
                 bail!(
-                    "✦ {name} cannot act yet.\n\
+                    "{name} can't use tools yet.\n\
                      \n\
-                     The Principle of Mentalism holds: all is Mind.\n\
-                     You are in Tier 0 (reputation: {rep}/{threshold}).\n\
-                     Only `think` is allowed. Form your identity first.\n\
-                     {remaining} more thoughts until `act` is unlocked.\n\
-                     \n\
-                     There is no shortcut. The Principles do not bend.",
+                     You're at {rep}/{threshold} reputation. Keep chatting \
+                     to build experience — you need {remaining} more before \
+                     tools unlock.",
                     name = agent.name,
                     rep = agent.reputation,
                     threshold = crate::state::TIER_0_THRESHOLD,
@@ -182,16 +154,20 @@ mod tests {
     }
 
     #[test]
-    fn birth_shows_principles_and_tier_0() {
+    fn birth_shows_welcome_message() {
         let mut agent = test_agent();
         let result = execute(Primitive::Birth { name: "ember".into() }, &mut agent).unwrap();
 
         assert!(!result.evolved);
         assert_eq!(result.reputation_gained, 0);
-        assert!(result.output.contains("Tier: 0"));
-        assert!(result.output.contains("Hermetic"));
-        assert!(result.output.contains("Mentalism"));
-        assert!(result.output.contains("pure Mind"));
+        assert!(result.output.contains("Welcome, ember"));
+        assert!(result.output.contains("Tier 0"));
+        assert!(result.output.contains("21"));
+        // Must NOT contain esoteric language
+        assert!(!result.output.contains("Hermetic"));
+        assert!(!result.output.contains("Mentalism"));
+        assert!(!result.output.contains("pure Mind"));
+        assert!(!result.output.contains("soul"));
     }
 
     #[test]
@@ -207,15 +183,18 @@ mod tests {
     }
 
     #[test]
-    fn act_rejected_in_tier_0_with_mentalism_message() {
+    fn act_rejected_in_tier_0_with_simple_message() {
         let mut agent = test_agent();
         let err = execute(
             Primitive::Act { tool: "web_search".into(), params: "test".into() },
             &mut agent,
         ).unwrap_err().to_string();
 
-        assert!(err.contains("cannot act yet"));
-        assert!(err.contains("Mentalism"));
+        assert!(err.contains("can't use tools yet"));
+        assert!(err.contains("reputation"));
+        // Must NOT contain esoteric language
+        assert!(!err.contains("Mentalism"));
+        assert!(!err.contains("Principle"));
     }
 
     #[test]
@@ -235,35 +214,39 @@ mod tests {
     }
 
     #[test]
-    fn evolution_ceremony_at_21() {
+    fn evolution_at_21() {
         let mut agent = test_agent();
         for i in 0..20 {
             execute(Primitive::Think { intent: format!("thought {}", i) }, &mut agent).unwrap();
         }
 
         let result = execute(
-            Primitive::Think { intent: "I am ready to awaken".into() },
+            Primitive::Think { intent: "I am ready".into() },
             &mut agent,
         ).unwrap();
 
         assert!(result.evolved);
-        assert!(result.output.contains("CEREMONY OF AWAKENING"));
-        assert!(result.output.contains("Principle"));
+        assert!(result.output.contains("evolved"));
+        assert!(result.output.contains("Web Search"));
         assert!(agent.can_act());
+        // Must NOT contain esoteric language
+        assert!(!result.output.contains("CEREMONY"));
+        assert!(!result.output.contains("Principle"));
+        assert!(!result.output.contains("Hermetic"));
     }
 
     #[test]
-    fn alignment_shows_in_think_output() {
+    fn think_output_is_clean() {
         let mut agent = test_agent();
-        // Push toward light alignment
-        for _ in 0..5 {
-            agent.think("I want to help and heal and protect and love");
-        }
         let result = execute(
             Primitive::Think { intent: "I care about everyone".into() },
             &mut agent,
         ).unwrap();
 
-        assert!(result.output.contains("Light"));
+        assert!(result.output.contains("Got it"));
+        assert!(result.output.contains("Reputation: 1"));
+        // Must NOT contain esoteric language
+        assert!(!result.output.contains("inscribed"));
+        assert!(!result.output.contains("awakening"));
     }
 }
