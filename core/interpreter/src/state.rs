@@ -3,6 +3,30 @@ use std::collections::HashMap;
 /// Reputation threshold to leave Tier 0 and unlock `act`.
 pub const TIER_0_THRESHOLD: u64 = 21;
 
+/// Cost to birth a new agent, in MIST (1 SUI = 1_000_000_000 MIST).
+/// This will be enforced by the Sui Move contract on-chain.
+pub const BIRTH_COST_MIST: u64 = 100_000_000; // 0.1 SUI
+
+/// Represents a confirmed SUI payment for birth.
+/// In production, this will be validated against the Sui blockchain
+/// via the Move contract at `contracts/sources/pet.move`.
+#[derive(Debug, Clone)]
+pub struct PaymentConfirmation {
+    /// The Sui transaction digest that proves payment.
+    pub tx_digest: String,
+    /// Amount paid in MIST.
+    pub amount_mist: u64,
+    /// The sender's Sui address.
+    pub sender: String,
+}
+
+impl PaymentConfirmation {
+    /// Validate that the payment meets the birth cost requirement.
+    pub fn is_valid_for_birth(&self) -> bool {
+        self.amount_mist >= BIRTH_COST_MIST && !self.tx_digest.is_empty()
+    }
+}
+
 /// The 7 Hermetic Principles — embedded into every agent at birth.
 /// These form the base "soul" of every Ọ̀ṣỌ́ agent.
 /// Each principle maps to real behavior in the code.
@@ -69,6 +93,17 @@ pub struct ActionReceipt {
     pub timestamp: u64,
 }
 
+/// A logged reputation decay event.
+#[derive(Debug, Clone)]
+pub struct DecayEvent {
+    pub amount: u64,
+    pub reason: String,
+    pub reputation_before: u64,
+    pub reputation_after: u64,
+    pub tier_before: u8,
+    pub tier_after: u8,
+}
+
 /// A single Ọ̀ṣỌ́ agent — an independent, persistent digital being.
 ///
 /// Every agent starts at reputation 0, Tier 0.
@@ -105,6 +140,9 @@ pub struct Agent {
 
     /// [CAUSE AND EFFECT] Permanent log of every action ever taken.
     pub action_log: Vec<ActionReceipt>,
+
+    /// Log of all reputation decay events with reasons.
+    pub decay_log: Vec<DecayEvent>,
 
     /// Personality traits — shaped by what the agent thinks about.
     /// [CORRESPONDENCE] These traits influence how `act` behaves.
@@ -155,6 +193,7 @@ impl Agent {
             soul,
             thoughts: Vec::new(),
             action_log: Vec::new(),
+            decay_log: Vec::new(),
             personality: Personality::default(),
             memory_root: None,
             session: HashMap::new(),
@@ -248,14 +287,17 @@ impl Agent {
         actual_gain
     }
 
-    /// [VIBRATION + RHYTHM] Decrease reputation. Nothing is static.
+    /// Decrease reputation with a logged reason.
     /// Called when the agent is misused, idle too long, or acts destructively.
     /// Reputation cannot go below 0. If it drops below 21, act is NOT re-locked
-    /// (evolution is permanent — you cannot un-know what you've learned).
-    pub fn decay_reputation(&mut self, amount: u64) {
+    /// (evolution is permanent — you can't un-learn what you've learned).
+    pub fn decay_reputation(&mut self, amount: u64, reason: &str) {
+        let rep_before = self.reputation;
+        let tier_before = self.tier.level();
+
         self.reputation = self.reputation.saturating_sub(amount);
 
-        // [RHYTHM] Tier can decrease if reputation drops far enough
+        // Tier can decrease if reputation drops far enough
         if let Tier::Awakened(level) = self.tier {
             let current_threshold = match level {
                 1 => 0,    // Can't drop below Awakened(1) once evolved
@@ -270,6 +312,15 @@ impl Agent {
                 self.tier = Tier::Awakened(level - 1);
             }
         }
+
+        self.decay_log.push(DecayEvent {
+            amount,
+            reason: reason.to_string(),
+            reputation_before: rep_before,
+            reputation_after: self.reputation,
+            tier_before,
+            tier_after: self.tier.level(),
+        });
     }
 
     /// Generate the evolution message when leaving Tier 0.
@@ -456,15 +507,15 @@ mod tests {
         let mut agent = Agent::new("id".into(), "ember".into(), "dna".into());
         for i in 0..21 { agent.think(&format!("t{}", i)); }
         assert_eq!(agent.reputation, 21);
-        agent.decay_reputation(5);
-        assert_eq!(agent.reputation, 16); // [VIBRATION] reputation dropped
+        agent.decay_reputation(5, "test decay");
+        assert_eq!(agent.reputation, 16);
     }
 
     #[test]
     fn reputation_decay_cannot_go_below_zero() {
         let mut agent = Agent::new("id".into(), "ember".into(), "dna".into());
         agent.think("test");
-        agent.decay_reputation(100);
+        agent.decay_reputation(100, "test underflow");
         assert_eq!(agent.reputation, 0);
     }
 
@@ -478,7 +529,7 @@ mod tests {
         assert_eq!(agent.tier, Tier::Awakened(2));
 
         // [RHYTHM] Decay back below threshold
-        agent.decay_reputation(agent.reputation - 50);
+        agent.decay_reputation(agent.reputation - 50, "heavy decay test");
         assert_eq!(agent.tier, Tier::Awakened(1)); // Dropped a tier
     }
 
@@ -487,7 +538,7 @@ mod tests {
         let mut agent = Agent::new("id".into(), "ember".into(), "dna".into());
         for i in 0..21 { agent.think(&format!("t{}", i)); }
         assert_eq!(agent.tier, Tier::Awakened(1));
-        agent.decay_reputation(100); // Drop rep to 0
+        agent.decay_reputation(100, "test permanent evolution"); // Drop rep to 0
         assert_eq!(agent.reputation, 0);
         assert_eq!(agent.tier, Tier::Awakened(1)); // Still Awakened — can't go back to Zero
         assert!(agent.can_act());
@@ -542,6 +593,50 @@ mod tests {
         let t3_gain = agent.act_completed("t", "p", "h".into());
 
         assert!(t1_gain > t3_gain); // [RHYTHM] harder to gain at higher tiers
+    }
+
+    #[test]
+    fn decay_logs_reason() {
+        let mut agent = Agent::new("id".into(), "ember".into(), "dna".into());
+        for i in 0..21 { agent.think(&format!("t{}", i)); }
+        assert!(agent.decay_log.is_empty());
+
+        agent.decay_reputation(5, "idle too long");
+        assert_eq!(agent.decay_log.len(), 1);
+        assert_eq!(agent.decay_log[0].reason, "idle too long");
+        assert_eq!(agent.decay_log[0].reputation_before, 21);
+        assert_eq!(agent.decay_log[0].reputation_after, 16);
+        assert_eq!(agent.decay_log[0].amount, 5);
+
+        agent.decay_reputation(3, "destructive action");
+        assert_eq!(agent.decay_log.len(), 2);
+        assert_eq!(agent.decay_log[1].reason, "destructive action");
+    }
+
+    #[test]
+    fn payment_validation() {
+        use crate::state::PaymentConfirmation;
+
+        let valid = PaymentConfirmation {
+            tx_digest: "abc123".into(),
+            amount_mist: 100_000_000,
+            sender: "0xtest".into(),
+        };
+        assert!(valid.is_valid_for_birth());
+
+        let too_low = PaymentConfirmation {
+            tx_digest: "abc123".into(),
+            amount_mist: 1000,
+            sender: "0xtest".into(),
+        };
+        assert!(!too_low.is_valid_for_birth());
+
+        let no_digest = PaymentConfirmation {
+            tx_digest: "".into(),
+            amount_mist: 100_000_000,
+            sender: "0xtest".into(),
+        };
+        assert!(!no_digest.is_valid_for_birth());
     }
 
     #[test]

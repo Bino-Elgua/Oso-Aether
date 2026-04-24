@@ -1,5 +1,6 @@
 use oso_parser::Primitive;
-use crate::state::Agent;
+use crate::state::{Agent, PaymentConfirmation};
+use crate::tools;
 use anyhow::{bail, Result};
 
 /// Result of executing a primitive.
@@ -24,11 +25,30 @@ pub struct ExecutionResult {
 /// [RHYTHM]           reputation gains slow at higher tiers; decay is possible
 /// [CAUSE AND EFFECT] every act produces a permanent, immutable receipt
 /// [GENDER]           think = receptive (1 rep), act = active (5+ rep)
-pub fn execute(primitive: Primitive, agent: &mut Agent) -> Result<ExecutionResult> {
+pub fn execute(
+    primitive: Primitive,
+    agent: &mut Agent,
+    payment: Option<&PaymentConfirmation>,
+) -> Result<ExecutionResult> {
     match primitive {
         // ── birth "name" ────────────────────────────────────────────
-        // [MENTALISM] The agent begins in pure Mind. No action. No tools.
         Primitive::Birth { name } => {
+            // Require SUI payment for birth.
+            // In production, this is enforced on-chain by the Move contract.
+            match payment {
+                Some(p) if p.is_valid_for_birth() => {}
+                Some(_) => bail!(
+                    "Payment too low. Birthing an agent costs at least {} MIST (0.1 SUI).",
+                    crate::state::BIRTH_COST_MIST,
+                ),
+                None => bail!(
+                    "A SUI payment is required to birth a new agent.\n\
+                     Cost: {} MIST (0.1 SUI).\n\
+                     Connect your wallet to continue.",
+                    crate::state::BIRTH_COST_MIST,
+                ),
+            }
+
             Ok(ExecutionResult {
                 output: format!(
                     "Welcome, {name}!\n\
@@ -112,7 +132,12 @@ pub fn execute(primitive: Primitive, agent: &mut Agent) -> Result<ExecutionResul
                 );
             }
 
-            // [CAUSE AND EFFECT] Generate permanent receipt hash
+            // Check tool tier access — agent must have enough reputation for this tool
+            if let Err(msg) = tools::check_tool_access(&tool, agent.reputation) {
+                bail!("{}", msg);
+            }
+
+            // Generate permanent receipt hash
             let receipt_data = format!("{}:{}:{}:{}", agent.id, tool, params, agent.reputation);
             let receipt_hash = blake3::hash(receipt_data.as_bytes()).to_hex().to_string();
 
@@ -147,27 +172,68 @@ pub fn execute(primitive: Primitive, agent: &mut Agent) -> Result<ExecutionResul
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::Agent;
+    use crate::state::{Agent, PaymentConfirmation};
 
     fn test_agent() -> Agent {
         Agent::new("test_id".into(), "ember".into(), "test_dna".into())
     }
 
+    fn valid_payment() -> PaymentConfirmation {
+        PaymentConfirmation {
+            tx_digest: "test_tx_abc123".into(),
+            amount_mist: 100_000_000,
+            sender: "0xtest".into(),
+        }
+    }
+
     #[test]
     fn birth_shows_welcome_message() {
         let mut agent = test_agent();
-        let result = execute(Primitive::Birth { name: "ember".into() }, &mut agent).unwrap();
+        let payment = valid_payment();
+        let result = execute(
+            Primitive::Birth { name: "ember".into() },
+            &mut agent,
+            Some(&payment),
+        ).unwrap();
 
         assert!(!result.evolved);
         assert_eq!(result.reputation_gained, 0);
         assert!(result.output.contains("Welcome, ember"));
         assert!(result.output.contains("Tier 0"));
         assert!(result.output.contains("21"));
-        // Must NOT contain esoteric language
         assert!(!result.output.contains("Hermetic"));
         assert!(!result.output.contains("Mentalism"));
         assert!(!result.output.contains("pure Mind"));
         assert!(!result.output.contains("soul"));
+    }
+
+    #[test]
+    fn birth_rejected_without_payment() {
+        let mut agent = test_agent();
+        let err = execute(
+            Primitive::Birth { name: "ember".into() },
+            &mut agent,
+            None,
+        ).unwrap_err().to_string();
+
+        assert!(err.contains("payment is required"));
+    }
+
+    #[test]
+    fn birth_rejected_with_low_payment() {
+        let mut agent = test_agent();
+        let low = PaymentConfirmation {
+            tx_digest: "tx".into(),
+            amount_mist: 1000, // way too low
+            sender: "0x".into(),
+        };
+        let err = execute(
+            Primitive::Birth { name: "ember".into() },
+            &mut agent,
+            Some(&low),
+        ).unwrap_err().to_string();
+
+        assert!(err.contains("Payment too low"));
     }
 
     #[test]
@@ -176,6 +242,7 @@ mod tests {
         let result = execute(
             Primitive::Think { intent: "what is truth".into() },
             &mut agent,
+            None,
         ).unwrap();
 
         assert_eq!(result.reputation_gained, 1);
@@ -188,11 +255,11 @@ mod tests {
         let err = execute(
             Primitive::Act { tool: "web_search".into(), params: "test".into() },
             &mut agent,
+            None,
         ).unwrap_err().to_string();
 
         assert!(err.contains("can't use tools yet"));
         assert!(err.contains("reputation"));
-        // Must NOT contain esoteric language
         assert!(!err.contains("Mentalism"));
         assert!(!err.contains("Principle"));
     }
@@ -205,31 +272,65 @@ mod tests {
         let result = execute(
             Primitive::Act { tool: "web_search".into(), params: "test query".into() },
             &mut agent,
+            None,
         ).unwrap();
 
         assert!(result.output.contains("Permanent Receipt"));
         assert!(result.output.contains("Hash:"));
         assert_eq!(agent.action_log.len(), 1);
-        assert!(result.reputation_gained >= 4); // [GENDER] active = strong
+        assert!(result.reputation_gained >= 4);
+    }
+
+    #[test]
+    fn act_rejected_for_locked_tool() {
+        let mut agent = test_agent();
+        for i in 0..21 { agent.think(&format!("t{}", i)); }
+        // Agent is at rep 21 — code_gen requires 61
+        let err = execute(
+            Primitive::Act { tool: "code_gen".into(), params: "fibonacci".into() },
+            &mut agent,
+            None,
+        ).unwrap_err().to_string();
+
+        assert!(err.contains("don't have access"));
+        assert!(err.contains("61"));
+    }
+
+    #[test]
+    fn act_rejected_for_unknown_tool() {
+        let mut agent = test_agent();
+        for i in 0..21 { agent.think(&format!("t{}", i)); }
+
+        let err = execute(
+            Primitive::Act { tool: "teleport".into(), params: "moon".into() },
+            &mut agent,
+            None,
+        ).unwrap_err().to_string();
+
+        assert!(err.contains("Unknown tool"));
     }
 
     #[test]
     fn evolution_at_21() {
         let mut agent = test_agent();
         for i in 0..20 {
-            execute(Primitive::Think { intent: format!("thought {}", i) }, &mut agent).unwrap();
+            execute(
+                Primitive::Think { intent: format!("thought {}", i) },
+                &mut agent,
+                None,
+            ).unwrap();
         }
 
         let result = execute(
             Primitive::Think { intent: "I am ready".into() },
             &mut agent,
+            None,
         ).unwrap();
 
         assert!(result.evolved);
         assert!(result.output.contains("evolved"));
         assert!(result.output.contains("Web Search"));
         assert!(agent.can_act());
-        // Must NOT contain esoteric language
         assert!(!result.output.contains("CEREMONY"));
         assert!(!result.output.contains("Principle"));
         assert!(!result.output.contains("Hermetic"));
@@ -241,11 +342,11 @@ mod tests {
         let result = execute(
             Primitive::Think { intent: "I care about everyone".into() },
             &mut agent,
+            None,
         ).unwrap();
 
         assert!(result.output.contains("Got it"));
         assert!(result.output.contains("Reputation: 1"));
-        // Must NOT contain esoteric language
         assert!(!result.output.contains("inscribed"));
         assert!(!result.output.contains("awakening"));
     }
