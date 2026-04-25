@@ -2,6 +2,7 @@ use oso_parser::Primitive;
 
 /// Result of translating natural language into a primitive.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TranslationResult {
     pub primitive: Primitive,
     /// The original natural language input.
@@ -15,6 +16,7 @@ pub struct TranslationResult {
 /// All recognized slash commands.
 /// These are syntax sugar — every one resolves to `think` or `act`.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum SlashCommand {
     /// /private <message> → think (marked private)
     Private { message: String },
@@ -32,6 +34,8 @@ pub enum SlashCommand {
     Export,
     /// /personality → think (shows personality breakdown)
     Personality,
+    /// /sandbox on|off → toggle sandbox mode
+    Sandbox { enabled: bool },
 }
 
 /// Check if input is a slash command. Returns None if not.
@@ -118,6 +122,24 @@ fn try_slash_command(input: &str) -> Option<TranslationResult> {
             confidence: 1.0,
             slash_command: Some(SlashCommand::Personality),
         }),
+        "sandbox" => {
+            let enabled = match rest.to_lowercase().as_str() {
+                "on" | "true" | "1" | "yes" => true,
+                "off" | "false" | "0" | "no" => false,
+                // No argument toggles (defaults to on)
+                "" => true,
+                _ => return None, // Invalid argument, fall through to think
+            };
+            let intent_tag = if enabled { "[sandbox on]" } else { "[sandbox off]" };
+            Some(TranslationResult {
+                primitive: Primitive::Think {
+                    intent: intent_tag.to_string(),
+                },
+                original: input.to_string(),
+                confidence: 1.0,
+                slash_command: Some(SlashCommand::Sandbox { enabled }),
+            })
+        }
         _ => None,
     }
 }
@@ -531,5 +553,35 @@ mod tests {
     fn normal_text_has_no_slash_command() {
         let r = translate("hello world").unwrap();
         assert!(r.slash_command.is_none());
+    }
+
+    // ── Sandbox commands ──
+
+    #[test]
+    fn slash_sandbox_on() {
+        let r = translate("/sandbox on").unwrap();
+        assert_eq!(r.slash_command, Some(SlashCommand::Sandbox { enabled: true }));
+        assert!(matches!(r.primitive, Primitive::Think { ref intent } if intent == "[sandbox on]"));
+    }
+
+    #[test]
+    fn slash_sandbox_off() {
+        let r = translate("/sandbox off").unwrap();
+        assert_eq!(r.slash_command, Some(SlashCommand::Sandbox { enabled: false }));
+        assert!(matches!(r.primitive, Primitive::Think { ref intent } if intent == "[sandbox off]"));
+    }
+
+    #[test]
+    fn slash_sandbox_no_arg_defaults_on() {
+        let r = translate("/sandbox").unwrap();
+        assert_eq!(r.slash_command, Some(SlashCommand::Sandbox { enabled: true }));
+    }
+
+    #[test]
+    fn slash_sandbox_invalid_arg_falls_through() {
+        let r = translate("/sandbox maybe").unwrap();
+        // Invalid argument → falls through to normal think
+        assert!(r.slash_command.is_none());
+        assert!(matches!(r.primitive, Primitive::Think { .. }));
     }
 }

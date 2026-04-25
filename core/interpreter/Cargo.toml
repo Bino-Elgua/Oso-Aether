@@ -9,7 +9,11 @@ oso-parser = { path = "../parser" }
 anyhow = "1.0"
 uuid = { version = "1.0", features = ["v4"] }
 blake3 = "1.5"
-tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"], optional = true }
+
+[features]
+default = []
+serde = ["dep:serde", "oso-parser/serde"]
 
 [lib]
 name = "oso_interpreter"

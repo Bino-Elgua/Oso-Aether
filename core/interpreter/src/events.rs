@@ -9,6 +9,7 @@
 
 /// The agent type determined by thought analysis.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum AgentType {
     Research,
     Builder,
@@ -30,6 +31,7 @@ impl AgentType {
 /// Contains only facts — no prose. The response layer decides how
 /// to present these facts to the user.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ExecutionEvent {
     /// Agent was successfully born.
     BirthSuccess {
@@ -146,10 +148,25 @@ pub enum ExecutionEvent {
         from_owner: String,
         to_owner: String,
     },
+
+    /// Sandbox mode was toggled.
+    SandboxToggled {
+        enabled: bool,
+    },
+
+    /// Action completed in sandbox mode (forced private).
+    ActionCompletedSandbox {
+        tool: String,
+        params: String,
+        receipt_hash: String,
+        receipt_number: usize,
+        reputation_gained: u64,
+    },
 }
 
 /// Snapshot of personality traits for events.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PersonalitySnapshot {
     pub curiosity: f64,
     pub boldness: f64,

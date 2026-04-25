@@ -1,6 +1,7 @@
 pub mod events;
 pub mod executor;
 pub mod garden;
+pub mod odu;
 pub mod ownership;
 pub mod response;
 pub mod state;
@@ -10,6 +11,7 @@ pub mod translator;
 pub use events::{AgentType, ExecutionEvent, PersonalitySnapshot};
 pub use executor::{execute, execute_event};
 pub use garden::{GardenEntry, GardenProfile};
+pub use odu::OduKeyState;
 pub use ownership::{OwnershipRecord, TransferResult};
 pub use response::{DefaultResponder, Response, ResponseGenerator};
 pub use state::{

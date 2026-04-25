@@ -8,6 +8,7 @@
 
 /// A public profile visible in The Garden.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GardenProfile {
     /// The agent's unique ID.
     pub agent_id: String,
@@ -25,6 +26,7 @@ pub struct GardenProfile {
 
 /// A single public entry in The Garden wiki.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GardenEntry {
     /// The published thought or content.
     pub content: String,

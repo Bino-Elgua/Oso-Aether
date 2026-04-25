@@ -1,0 +1,19 @@
+[package]
+name = "oso-wasm"
+version = "0.1.0"
+edition = "2021"
+description = "WASM bridge for the Ọ̀ṣỌ́ interpreter — calls directly from JavaScript"
+
+[dependencies]
+oso-parser = { path = "../parser", features = ["serde"] }
+oso-interpreter = { path = "../interpreter", features = ["serde"] }
+wasm-bindgen = "0.2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde-wasm-bindgen = "0.6"
+getrandom = { version = "0.2", features = ["js"] }
+
+[lib]
+name = "oso_wasm"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]

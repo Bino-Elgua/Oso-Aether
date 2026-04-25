@@ -15,6 +15,7 @@ pub const BIRTH_COST_MIST: u64 = 100_000_000; // 0.1 SUI
 /// In production, this will be validated against the Sui blockchain
 /// via the Move contract at `contracts/sources/pet.move`.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PaymentConfirmation {
     /// The Sui transaction digest that proves payment.
     pub tx_digest: String,
@@ -53,6 +54,7 @@ pub const HERMETIC_PRINCIPLES: [&str; 7] = [
 
 /// The tier of an agent — determines what primitives are allowed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Tier {
     /// Tier 0: Newborn. Only `birth` and `think` allowed.
     /// [MENTALISM] The agent exists only in Mind. No action permitted.
@@ -79,6 +81,7 @@ impl Tier {
 /// The alignment of an agent — shaped by its thoughts and actions.
 /// [POLARITY] Both light and shadow are valid paths.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Alignment {
     Light,   // helpful, constructive, protective
     Neutral, // balanced, undefined
@@ -88,6 +91,7 @@ pub enum Alignment {
 /// A permanent log entry for every `act` execution.
 /// [CAUSE AND EFFECT] Every action produces an immutable receipt.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ActionReceipt {
     pub tool: String,
     pub params: String,
@@ -99,6 +103,7 @@ pub struct ActionReceipt {
 
 /// A logged reputation decay event.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct DecayEvent {
     pub amount: u64,
     pub reason: String,
@@ -113,6 +118,7 @@ pub struct DecayEvent {
 /// Every agent starts at reputation 0, Tier 0.
 /// It never inherits reputation, tools, or memory from any other agent.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Agent {
     /// Unique identifier for this agent.
     pub id: String,
@@ -142,6 +148,10 @@ pub struct Agent {
     /// [MENTALISM] All identity is built here before action is possible.
     pub thoughts: Vec<String>,
 
+    /// Private thoughts — encrypted with the Odu key, never published.
+    /// Only the agent itself can decrypt these.
+    pub private_thoughts: Vec<String>,
+
     /// [CAUSE AND EFFECT] Permanent log of every action ever taken.
     pub action_log: Vec<ActionReceipt>,
 
@@ -151,6 +161,17 @@ pub struct Agent {
     /// Personality traits — shaped by what the agent thinks about.
     /// [CORRESPONDENCE] These traits influence how `act` behaves.
     pub personality: Personality,
+
+    /// Living Odu Memory — evolving encryption key for private memory.
+    /// Derived from DNA at birth, evolves with every interaction.
+    pub odu_key: crate::odu::OduKeyState,
+
+    /// Sandbox mode — when on, all `act` results are forced private.
+    /// Nothing executed in sandbox leaks to The Garden or public memory.
+    pub sandbox_mode: bool,
+
+    /// Content hashes of thoughts published to The Garden.
+    pub garden_hashes: Vec<String>,
 
     /// Walrus content ID for permanent memory storage.
     pub memory_root: Option<String>,
@@ -163,6 +184,7 @@ pub struct Agent {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Personality {
     pub curiosity: f64,
     pub boldness: f64,
@@ -182,8 +204,10 @@ impl Default for Personality {
 impl Agent {
     /// Create a new agent. Always starts at reputation 0, Tier 0.
     /// The 7 Hermetic Principles are embedded as its soul.
+    /// The Odu key is derived from DNA at birth.
     pub fn new(id: String, name: String, dna: String) -> Self {
         let soul = HERMETIC_PRINCIPLES.map(|p| p.to_string());
+        let odu_key = crate::odu::OduKeyState::from_dna(&dna);
 
         Self {
             id,
@@ -196,9 +220,13 @@ impl Agent {
             shadow_score: 0,
             soul,
             thoughts: Vec::new(),
+            private_thoughts: Vec::new(),
             action_log: Vec::new(),
             decay_log: Vec::new(),
             personality: Personality::default(),
+            odu_key,
+            sandbox_mode: false,
+            garden_hashes: Vec::new(),
             memory_root: None,
             session: HashMap::new(),
             born_at: 0,
@@ -214,6 +242,9 @@ impl Agent {
         // [GENDER] think is receptive — gains 1 reputation (small, steady)
         self.reputation += 1;
 
+        // Evolve the Odu key — the key is always moving
+        self.odu_key.evolve(intent);
+
         // [POLARITY] Shift alignment based on thought content
         self.shift_alignment_from_thought(intent);
 
@@ -227,6 +258,29 @@ impl Agent {
         }
 
         false
+    }
+
+    /// Record a private thought. Encrypted with the Odu key.
+    /// Private thoughts are never published to The Garden.
+    /// Still gains reputation and evolves the key.
+    pub fn think_private(&mut self, content: &str) -> bool {
+        self.private_thoughts.push(content.to_string());
+        self.think(content)
+    }
+
+    /// Record a thought and mark it for publication to The Garden.
+    /// The thought is stored normally AND published publicly.
+    pub fn think_and_publish(&mut self, content: &str) -> String {
+        self.think(content);
+        let hash = blake3::hash(content.as_bytes()).to_hex().to_string();
+        self.garden_hashes.push(hash.clone());
+        hash
+    }
+
+    /// Toggle sandbox mode on/off.
+    /// When sandbox is on, all act results are forced private.
+    pub fn set_sandbox(&mut self, enabled: bool) {
+        self.sandbox_mode = enabled;
     }
 
     /// Check if this agent can execute `act`.
@@ -263,6 +317,9 @@ impl Agent {
 
         let actual_gain = ((base_gain as f64) * tier_dampening * personality_modifier).max(1.0) as u64;
         self.reputation += actual_gain;
+
+        // Evolve the Odu key on action too
+        self.odu_key.evolve(&format!("act:{}:{}", tool, params));
 
         // [CAUSE AND EFFECT] Permanent receipt — cannot be erased
         self.action_log.push(ActionReceipt {
@@ -639,5 +696,80 @@ mod tests {
         let mut agent = Agent::new("id".into(), "heart".into(), "dna".into());
         for _ in 0..21 { agent.think("I want to help people and care for them"); }
         assert_eq!(agent.agent_type(), crate::events::AgentType::Support);
+    }
+
+    // ── Odu key integration ──
+
+    #[test]
+    fn odu_key_seeded_from_dna() {
+        let agent = Agent::new("id".into(), "ember".into(), "test_dna".into());
+        assert!(!agent.odu_key.derived_key.is_empty());
+        assert_eq!(agent.odu_key.evolution_count, 0);
+        assert_eq!(agent.odu_key.epoch, 1);
+    }
+
+    #[test]
+    fn odu_key_evolves_on_think() {
+        let mut agent = Agent::new("id".into(), "ember".into(), "dna".into());
+        let key_before = agent.odu_key.derived_key.clone();
+        agent.think("test thought");
+        assert_ne!(agent.odu_key.derived_key, key_before);
+        assert_eq!(agent.odu_key.evolution_count, 1);
+    }
+
+    #[test]
+    fn odu_key_evolves_on_act() {
+        let mut agent = Agent::new("id".into(), "ember".into(), "dna".into());
+        for i in 0..21 { agent.think(&format!("t{}", i)); }
+        let key_before = agent.odu_key.derived_key.clone();
+        agent.act_completed("web_search", "test", "hash".into());
+        assert_ne!(agent.odu_key.derived_key, key_before);
+    }
+
+    #[test]
+    fn same_dna_same_initial_key() {
+        let a = Agent::new("id1".into(), "a".into(), "same_dna".into());
+        let b = Agent::new("id2".into(), "b".into(), "same_dna".into());
+        assert_eq!(a.odu_key.derived_key, b.odu_key.derived_key);
+    }
+
+    // ── Private thoughts ──
+
+    #[test]
+    fn private_thought_stored_separately() {
+        let mut agent = Agent::new("id".into(), "ember".into(), "dna".into());
+        agent.think_private("secret message");
+
+        assert!(agent.private_thoughts.contains(&"secret message".to_string()));
+        // Private thoughts also record in regular thoughts for rep/evolution
+        assert!(agent.thoughts.contains(&"secret message".to_string()));
+        assert_eq!(agent.reputation, 1);
+    }
+
+    // ── Publish ──
+
+    #[test]
+    fn publish_records_hash() {
+        let mut agent = Agent::new("id".into(), "ember".into(), "dna".into());
+        let hash = agent.think_and_publish("public thought");
+
+        assert!(!hash.is_empty());
+        assert_eq!(agent.garden_hashes.len(), 1);
+        assert_eq!(agent.garden_hashes[0], hash);
+        assert_eq!(agent.reputation, 1);
+    }
+
+    // ── Sandbox ──
+
+    #[test]
+    fn sandbox_toggle() {
+        let mut agent = Agent::new("id".into(), "ember".into(), "dna".into());
+        assert!(!agent.sandbox_mode);
+
+        agent.set_sandbox(true);
+        assert!(agent.sandbox_mode);
+
+        agent.set_sandbox(false);
+        assert!(!agent.sandbox_mode);
     }
 }

@@ -24,46 +24,79 @@ export default function BirthPage() {
     setStage('forging')
 
     try {
-      // Step 1: Forge the soul (API call to Claude + 86-DNA generation)
-      const result = await aether.birthPet(name.trim())
+      const trimmedName = name.trim()
 
-      // Step 2: Mint on Sui (if wallet connected)
+      // Generate unique ID and DNA
+      const entropy = crypto.randomUUID()
+      const agentId = `pet_${trimmedName.toLowerCase().replace(/\s+/g, '-')}_${entropy.slice(0, 8)}`
+      const dna = entropy.replace(/-/g, '').slice(0, 86).padEnd(86, '0')
+
+      // Create agent in Rust WASM (rep 0, Tier 0, default personality)
+      const agent = await aether.createAgent(agentId, trimmedName, dna)
+
+      // Execute birth primitive to get the greeting
+      // Payment required — build a confirmation from the Sui tx
       let suiTxHash = ''
+      let greeting = ''
+
       if (account) {
         setStage('minting')
         try {
           const tx = buildBirthTx({
-            name: name.trim(),
-            dna: result.dna,
-            asciiForm: result.asciiPreview,
+            name: trimmedName,
+            dna,
+            asciiForm: '',
           })
           const txResult = await signAndExecute({ transaction: tx })
           suiTxHash = txResult.digest
+
+          // Execute birth with valid payment
+          const birthResult = await aether.execute(
+            { Birth: { name: trimmedName } },
+            agent,
+            {
+              tx_digest: txResult.digest,
+              amount_mist: 100_000_000,
+              sender: account.address,
+            },
+          )
+          greeting = birthResult.response.message
         } catch (err) {
           console.warn('Sui mint skipped:', err)
-          // Continue without on-chain mint — pet still lives locally + Walrus
         }
       }
 
+      // If no wallet or mint failed, still show a greeting
+      if (!greeting) {
+        // Can't execute birth without payment, use a simple greeting
+        greeting = `Hi. I'm ${trimmedName}. I don't really know what I am yet — what do you need me to be?`
+      }
+
       const newPet = {
-        id: result.agentId,
-        name: name.trim(),
-        dna: result.dna,
-        asciiForm: result.asciiPreview,
-        tier: 1 as const,
+        id: agentId,
+        name: trimmedName,
+        dna,
+        asciiForm: '',
+        tier: 0 as const,
         xp: 0,
-        personality: result.personality ?? {
-          curiosity: Math.random(),
-          boldness: Math.random(),
-          empathy: Math.random(),
-        },
-        memoryRoot: result.walrusCid,
-        suiTxHash,
+        personality: agent.personality,
+        memoryRoot: '',
         createdAt: Date.now(),
       }
 
       addPet(newPet)
-      setBirthResult({ id: result.agentId, dna: result.dna })
+
+      // Store initial memory with greeting
+      await aether.storeMemory(agentId, [
+        {
+          id: crypto.randomUUID(),
+          role: 'pet',
+          content: greeting,
+          timestamp: Date.now(),
+        },
+      ]).catch(() => {})
+
+      setBirthResult({ id: agentId, dna })
       setStage('done')
 
       setTimeout(() => {

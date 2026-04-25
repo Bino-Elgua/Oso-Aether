@@ -2,6 +2,7 @@ use crate::events::{AgentType, ExecutionEvent};
 
 /// Final user-facing output after the response layer processes an event.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Response {
     /// The natural language message shown to the user.
     pub message: String,
@@ -230,14 +231,15 @@ impl ResponseGenerator for DefaultResponder {
 
             ExecutionEvent::HelpRequested => Response {
                 message: "Available commands:\n\
-                          /status       — See your current stats\n\
-                          /tools        — See available and locked abilities\n\
-                          /personality  — Detailed personality breakdown\n\
+                          /status        — See your current stats\n\
+                          /tools         — See available and locked abilities\n\
+                          /personality   — Detailed personality breakdown\n\
                           /private <msg> — Record a private thought\n\
                           /publish <msg> — Share a thought to The Garden\n\
-                          /export       — Download your conversation (private)\n\
-                          /clear        — Clear conversation history\n\
-                          /help         — This message"
+                          /sandbox on|off — Toggle sandbox mode (actions stay private)\n\
+                          /export        — Download your conversation (private)\n\
+                          /clear         — Clear conversation history\n\
+                          /help          — This message"
                     .to_string(),
                 evolved: false,
                 reputation_gained: 0,
@@ -312,6 +314,42 @@ impl ResponseGenerator for DefaultResponder {
                 ),
                 evolved: false,
                 reputation_gained: 0,
+            },
+
+            ExecutionEvent::SandboxToggled { enabled } => Response {
+                message: if *enabled {
+                    "Sandbox mode is on. Everything I do stays private until you turn it off."
+                        .to_string()
+                } else {
+                    "Sandbox mode is off. Back to normal."
+                        .to_string()
+                },
+                evolved: false,
+                reputation_gained: 0,
+            },
+
+            ExecutionEvent::ActionCompletedSandbox {
+                tool,
+                params,
+                receipt_hash,
+                receipt_number,
+                reputation_gained,
+            } => {
+                let message = format!(
+                    "Done (sandbox). Used {tool} with \"{params}\".\n\
+                     Receipt #{receipt_number}: {short_hash}\n\
+                     This action is private — nothing was published.",
+                    tool = tool,
+                    params = params,
+                    receipt_number = receipt_number,
+                    short_hash = &receipt_hash[..16],
+                );
+
+                Response {
+                    message,
+                    evolved: false,
+                    reputation_gained: *reputation_gained,
+                }
             },
         }
     }

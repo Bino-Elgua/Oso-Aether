@@ -1,16 +1,18 @@
-import { OMO_TEMPLATES } from './registry'
-import { dnaSeed } from './generator'
+import { dnaSeed, generatePetAscii, type Personality, type Tier } from './generator.ts'
 
-/** Get the full 5-tier evolution line for a given DNA. Deterministic. */
+function personalityFromSeed(seed: number): Personality {
+  return {
+    curiosity: ((seed & 0xff) % 100) / 100,
+    boldness: (((seed >> 8) & 0xff) % 100) / 100,
+    empathy: (((seed >> 16) & 0xff) % 100) / 100,
+  }
+}
+
+/** Get the full 0-5 evolution line for a given DNA. Deterministic. */
 export function getEvolutionLine(dna: string): string[] {
   const seed = dnaSeed(dna)
-  const pick = (arr: string[]) => arr[seed % arr.length]
+  const personality = personalityFromSeed(seed)
+  const tiers: Tier[] = [0, 1, 2, 3, 4, 5]
 
-  return [
-    pick(OMO_TEMPLATES.tier1),
-    pick(OMO_TEMPLATES.tier2),
-    pick(OMO_TEMPLATES.tier3),
-    pick(OMO_TEMPLATES.tier4),
-    pick(OMO_TEMPLATES.tier5),
-  ]
+  return tiers.map((tier) => generatePetAscii(dna, tier, personality))
 }

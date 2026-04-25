@@ -1,42 +1,53 @@
-export type TemplateSet = {
-  tier1: string[]
-  tier2: string[]
-  tier3: string[]
-  tier4: string[]
-  tier5: string[]
+export type TemplateTier = 0 | 1 | 2 | 3 | 4 | 5
+
+export type PetTemplate = {
+  name: string
+  lines: string[]
+  maskFixed?: boolean
 }
 
-export const OMO_TEMPLATES: TemplateSet = {
-  tier1: [
-    `  .--.\n ( o o )\n  >--<`,
-    `  ~ ~ ~\n ( . . )\n  ~ ~ ~`,
-    `  \u256d\u2500\u2500\u2500\u256e\n ( o o )\n  \u2570\u2500\u2500\u2500\u256f`,
+export const OMO_TEMPLATES: Record<TemplateTier, PetTemplate[]> = {
+  0: [
+    { name: 'Seed', lines: ['    {auraL}', '   ( {eyes} )', '    {mouth}'] },
+    { name: 'Blank', lines: ['    . .', '    {eyes}', '    {mouth}'] },
+    { name: 'Mist', lines: ['   {auraL} {auraR}', '   · {eyes} ·', '    {mouth}'] },
   ],
-  tier2: [
-    `   \u2728\u2728\n  ( \u2022 \u2022 )\n   \u2728\u2728`,
-    `   (\u25d5 \u25d5)\n    ~ ~ `,
-    `   /\\_/\\\n  ( o o )\n   ^   ^`,
+  1: [
+    { name: 'Wisp', lines: ['   ( {eyes} )', '    {mouth}'] },
+    { name: 'Nub', lines: ['   .--.', '  ( {eyes} )', '   {mouth}'] },
+    { name: 'Pebble', lines: ['   ╭───╮', '  ( {eyes} )', '   ╰{base}╯'] },
   ],
-  tier3: [
-    `   /===/\\\n  ( \u25c9 \u25c9 )\n   |   |`,
-    `   \u263e \u263d\n  ( \u2022 \u2022 )\n   ~ ~ ~`,
-    `   /\u2500\u2500\u2500\\\n  ( \u25d5 \u25d5 )\n   \\___/`,
+  2: [
+    { name: 'Spark', lines: ['   /\\_/\\', '  ( {eyes} )', '   ^ {mouth} ^'] },
+    { name: 'Floof', lines: ['   ({eyes})', '    {mouth}'] },
+    { name: 'Zig', lines: ['   {auraL}{auraR}', '  ( {eyes} )', '   {auraL}{auraR}'] },
+    { name: 'Moss', lines: ['   /===/\\', '  ( {eyes} )', '   | {mouth} |'] },
   ],
-  tier4: [
-    `   \u256d\u2501\u2726\u2501\u256e\n  ( \u25c8 \u25c8 )\n   \u2570\u2501\u2501\u2501\u256f`,
-    `   /\u2500\u2500\u2500\u2500\\\n  ( \u25c6 \u25c6 )\n   \\\u2500\u2500\u2500\u2500/`,
-    `   \u2728 /\u2571\u2572\\ \u2728\n  ( \u25c9 \u25c9 )\n   \u2728 \\\u2572\u2571/ \u2728`,
+  3: [
+    { name: 'Stargazer', lines: ['   {sigilL} {sigilR}', '  ( {eyes} )', '   {base}'] },
+    { name: 'Ember', lines: ['   /───\\', '  ( {eyes} )', '   \\{base}/'] },
+    { name: 'Void', lines: ['   /────\\', '  ( {eyes} )', '   \\{base}/'] },
+    { name: 'Luna', lines: ['   {auraL} /\\', '  ( {eyes} )', '   {auraR} \\/'] },
   ],
-  tier5: [
-    `   /\\_/\\\n  (\u1ECC\u0300\u1E63\u1ECC\u0301)\n   >   <`,
-    `   \u256d\u2501\u2501\u2501\u2501\u2501\u256e\n  / \u1ECC\u0300\u1E63\u1ECC\u0301 \\\n (   ~   )\n  \u2570\u2501\u2501\u2501\u2501\u2501\u256f`,
-    `   \u263e\u263d\u263e\n  /\u1ECC\u0300\u1E63\u1ECC\u0301\\\n (  ~ ~ )\n  \\___/`,
-    `   /===/\\\n  [\u1ECC\u0300\u1E63\u1ECC\u0301]\n   | ^ |`,
-    `   \u2728\u2728\u2728\n  / \u1ECC\u0300\u1E63\u1ECC\u0301 \\\n (   \u25c9   )\n  \\_____/`,
-    `   \u256d\u2500\u2500\u2500\u2500\u2500\u256e\n  /  \u1ECC\u0300\u1E63\u1ECC\u0301  \\\n (    ~    )\n  \u2570\u2500\u2500\u2500\u2500\u2500\u256f`,
-    `   \u256d\u2501\u2501\u2501\u2501\u2501\u256e\n  /  \u1ECC\u0300\u1E63\u1ECC\u0301  \\\n (  \u25c6  \u25c6   )\n  \u2570\u2501\u2501\u2501\u2501\u2501\u256f\n     \u221e`,
-    `   \u26a1\u26a1\n  /\u1ECC\u0300\u1E63\u1ECC\u0301\\\n (  > < )\n  \\___/`,
-    `   \u263d \u263e\n  /\u1ECC\u0300\u1E63\u1ECC\u0301\\\n (  ~ ~ )\n  \\___/`,
-    `   \ud83d\udc8e\ud83d\udc8e\n  /\u1ECC\u0300\u1E63\u1ECC\u0301\\\n (  \u25c8 \u25c8 )\n  \\___/`,
+  4: [
+    { name: 'Crown', lines: ['   {auraL}╭━✦━╮{auraR}', '    ( {eyes} )', '     ╰{base}╯'] },
+    { name: 'Aether', lines: ['   /╭─╮\\', '  ( {eyes} )', '   \\╰─╯/'] },
+    { name: 'Storm', lines: ['   ⚡⚡', '  ( {eyes} )', '   ⚡⚡'] },
+    { name: 'Crystal', lines: ['   💎💎', '  ( {eyes} )', '   💎💎'] },
+  ],
+  5: [
+    { name: 'Ọ̀ṣỌ́ Prime', maskFixed: true, lines: ['   /\\_/\\', '  ({mask})', '   > {mouth} <'] },
+    { name: 'Ọ̀ṣỌ́ Sovereign', maskFixed: true, lines: ['   ╭━━━━━╮', '  / {mask} \\', ' (   {mouth}   )', '  ╰━━━━━╯'] },
+    { name: 'Ọ̀ṣỌ́ Eclipse', maskFixed: true, lines: ['   ☾☽☾', '  /{mask}\\', ' (  {mouth}  )', '  \\___/'] },
+    { name: 'Ọ̀ṣỌ́ Emberlord', maskFixed: true, lines: ['   /===/\\', '  | {mask} |', '   | {mouth} |'] },
+    { name: 'Ọ̀ṣỌ́ Starforged', maskFixed: true, lines: ['   ✨✨✨', '  / {mask} \\', ' (   {sigilL}   )', '  \\_____/'] },
+    { name: 'Ọ̀ṣỌ́ Voidking', maskFixed: true, lines: ['   ╭─────╮', '  /  {mask}  \\', ' (   {mouth}   )', '  ╰─────╯'] },
+    { name: 'Ọ̀ṣỌ́ Bloom', maskFixed: true, lines: ['   🌸 🌸', '  / {mask} \\', ' (   {mouth}   )', '  \\_____/'] },
+    { name: 'Ọ̀ṣỌ́ Thunder', maskFixed: true, lines: ['   ⚡⚡', '  /{mask}\\', ' (  {mouth}  )', '  \\___/'] },
+    { name: 'Ọ̀ṣỌ́ Moon', maskFixed: true, lines: ['   ☽ ☾', '  /{mask}\\', ' (  {mouth}  )', '  \\___/'] },
+    { name: 'Ọ̀ṣỌ́ Flame', maskFixed: true, lines: ['   🔥🔥', '  /{mask}\\', ' (  {mouth}  )', '  \\___/'] },
+    { name: 'Ọ̀ṣỌ́ Crystal', maskFixed: true, lines: ['   💎💎', '  /{mask}\\', ' (  {sigilR}  )', '  \\___/'] },
+    { name: 'Ọ̀ṣỌ́ Eternal', maskFixed: true, lines: ['   ╭━━━━━╮', '  /  {mask}  \\', ' (  {eyes}  )', '  ╰━━━━━╯'] },
+    { name: 'Ọ̀ṣỌ́ Legend', maskFixed: true, lines: ['   ✨✨✨', '  / {mask} \\', ' (   ∞   )', '  \\_____/'] },
   ],
 }

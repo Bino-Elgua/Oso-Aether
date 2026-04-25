@@ -17,7 +17,7 @@ Birth a new pet.
   "agentId": "pet_ember_a1b2c3d4",
   "dna": "a1b2c3...86chars",
   "personality": { "curiosity": 0.7, "boldness": 0.4, "empathy": 0.8 },
-  "asciiPreview": "  /\\_/\\\n ( o o )\n  >--<",
+  "asciiPreview": "   ( \u00b7 \u00b7 )\n    \u00b7",
   "walrusCid": "bafyrei...",
   "suiTxHash": "0x..."
 }
@@ -32,7 +32,7 @@ Process a natural language intent.
 {
   "agentId": "pet_ember_a1b2c3d4",
   "intent": "I want to learn about constellations",
-  "context": { "tier": 2, "personality": { "curiosity": 0.7 } }
+  "context": { "tier": 0, "xp": 0, "dna": "a1b2c3...86chars", "personality": { "curiosity": 0.7 } }
 }
 ```
 

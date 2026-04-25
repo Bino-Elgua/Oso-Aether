@@ -24,7 +24,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-65px)]">
+    <div className="h-[calc(100vh-73px)] px-4 py-6">
       <ChatInterface />
     </div>
   )

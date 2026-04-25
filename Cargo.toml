@@ -3,4 +3,5 @@ resolver = "2"
 members = [
     "core/parser",
     "core/interpreter",
+    "core/wasm",
 ]

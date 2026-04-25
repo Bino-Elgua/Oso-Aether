@@ -13,7 +13,7 @@ module oso::pet {
         name: String,
         dna_fingerprint: vector<u8>,  // 86 bytes — unique identity
         ascii_form: String,           // Current visual representation
-        tier: u8,                     // 1-5 evolution level
+        tier: u8,                     // 0-5 evolution level
         xp: u64,                      // Experience points
         memory_root: vector<u8>,      // Walrus content ID hash
         owner: address,
@@ -48,7 +48,7 @@ module oso::pet {
             name: string::utf8(name),
             dna_fingerprint: dna,
             ascii_form: string::utf8(ascii_form),
-            tier: 1,
+            tier: 0,
             xp: 0,
             memory_root: vector::empty(),
             owner: sender,
@@ -77,6 +77,8 @@ module oso::pet {
             pet.tier = 3;
         } else if (pet.xp >= 100 && pet.tier < 2) {
             pet.tier = 2;
+        } else if (pet.xp >= 25 && pet.tier < 1) {
+            pet.tier = 1;
         };
 
         if (pet.tier != old_tier) {

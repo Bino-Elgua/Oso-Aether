@@ -86,6 +86,14 @@ pub fn execute_event(
                     });
                 }
                 "[clear]" => return Ok(ExecutionEvent::ConversationCleared),
+                "[sandbox on]" => {
+                    agent.set_sandbox(true);
+                    return Ok(ExecutionEvent::SandboxToggled { enabled: true });
+                }
+                "[sandbox off]" => {
+                    agent.set_sandbox(false);
+                    return Ok(ExecutionEvent::SandboxToggled { enabled: false });
+                }
                 "[export]" => {
                     return Ok(ExecutionEvent::ExportGenerated {
                         name: agent.name.clone(),
@@ -99,7 +107,7 @@ pub fn execute_event(
             // /private and /publish — these DO record a thought
             if intent.starts_with("[private] ") {
                 let message = intent.strip_prefix("[private] ").unwrap().to_string();
-                agent.think(&message);
+                agent.think_private(&message);
                 return Ok(ExecutionEvent::PrivateThoughtRecorded {
                     message,
                     thought_count: agent.thoughts.len(),
@@ -107,7 +115,7 @@ pub fn execute_event(
             }
             if intent.starts_with("[publish] ") {
                 let message = intent.strip_prefix("[publish] ").unwrap().to_string();
-                agent.think(&message);
+                let _content_hash = agent.think_and_publish(&message);
                 return Ok(ExecutionEvent::PublishRequested {
                     message,
                     thought_count: agent.thoughts.len(),
@@ -169,16 +177,27 @@ pub fn execute_event(
 
             let receipt_data = format!("{}:{}:{}:{}", agent.id, tool, params, agent.reputation);
             let receipt_hash = blake3::hash(receipt_data.as_bytes()).to_hex().to_string();
+            let in_sandbox = agent.sandbox_mode;
             let rep_gain = agent.act_completed(&tool, &params, receipt_hash.clone());
             let receipt_number = agent.action_log.len();
 
-            Ok(ExecutionEvent::ActionCompleted {
-                tool,
-                params,
-                receipt_hash,
-                receipt_number,
-                reputation_gained: rep_gain,
-            })
+            if in_sandbox {
+                Ok(ExecutionEvent::ActionCompletedSandbox {
+                    tool,
+                    params,
+                    receipt_hash,
+                    receipt_number,
+                    reputation_gained: rep_gain,
+                })
+            } else {
+                Ok(ExecutionEvent::ActionCompleted {
+                    tool,
+                    params,
+                    receipt_hash,
+                    receipt_number,
+                    reputation_gained: rep_gain,
+                })
+            }
         }
     }
 }
@@ -512,5 +531,146 @@ mod tests {
         assert!(r.message.contains("web_search"));
         assert!(r.message.contains("Receipt"));
         assert!(r.reputation_gained >= 4);
+    }
+
+    // ── Sandbox mode ──
+
+    #[test]
+    fn sandbox_on_event() {
+        let mut agent = test_agent();
+        let event = execute_event(
+            Primitive::Think { intent: "[sandbox on]".into() },
+            &mut agent,
+            None,
+        ).unwrap();
+
+        assert!(matches!(event, ExecutionEvent::SandboxToggled { enabled: true }));
+        assert!(agent.sandbox_mode);
+    }
+
+    #[test]
+    fn sandbox_off_event() {
+        let mut agent = test_agent();
+        agent.set_sandbox(true);
+
+        let event = execute_event(
+            Primitive::Think { intent: "[sandbox off]".into() },
+            &mut agent,
+            None,
+        ).unwrap();
+
+        assert!(matches!(event, ExecutionEvent::SandboxToggled { enabled: false }));
+        assert!(!agent.sandbox_mode);
+    }
+
+    #[test]
+    fn act_in_sandbox_is_private() {
+        let mut agent = test_agent();
+        for i in 0..21 { agent.think(&format!("t{}", i)); }
+        agent.set_sandbox(true);
+
+        let event = execute_event(
+            Primitive::Act { tool: "web_search".into(), params: "test".into() },
+            &mut agent,
+            None,
+        ).unwrap();
+
+        assert!(matches!(event, ExecutionEvent::ActionCompletedSandbox { .. }));
+    }
+
+    #[test]
+    fn act_outside_sandbox_is_normal() {
+        let mut agent = test_agent();
+        for i in 0..21 { agent.think(&format!("t{}", i)); }
+
+        let event = execute_event(
+            Primitive::Act { tool: "web_search".into(), params: "test".into() },
+            &mut agent,
+            None,
+        ).unwrap();
+
+        assert!(matches!(event, ExecutionEvent::ActionCompleted { .. }));
+    }
+
+    #[test]
+    fn sandbox_response_is_friendly() {
+        let mut agent = test_agent();
+
+        let r = execute(
+            Primitive::Think { intent: "[sandbox on]".into() },
+            &mut agent,
+            None,
+        ).unwrap();
+        assert!(r.message.contains("Sandbox mode is on"));
+
+        let r = execute(
+            Primitive::Think { intent: "[sandbox off]".into() },
+            &mut agent,
+            None,
+        ).unwrap();
+        assert!(r.message.contains("Sandbox mode is off"));
+    }
+
+    // ── Private thoughts ──
+
+    #[test]
+    fn private_thought_records_in_private_list() {
+        let mut agent = test_agent();
+        let event = execute_event(
+            Primitive::Think { intent: "[private] secret stuff".into() },
+            &mut agent,
+            None,
+        ).unwrap();
+
+        assert!(matches!(event, ExecutionEvent::PrivateThoughtRecorded { .. }));
+        assert!(agent.private_thoughts.contains(&"secret stuff".to_string()));
+    }
+
+    // ── Publish ──
+
+    #[test]
+    fn publish_records_garden_hash() {
+        let mut agent = test_agent();
+        let event = execute_event(
+            Primitive::Think { intent: "[publish] my public thought".into() },
+            &mut agent,
+            None,
+        ).unwrap();
+
+        assert!(matches!(event, ExecutionEvent::PublishRequested { .. }));
+        assert_eq!(agent.garden_hashes.len(), 1);
+        assert!(!agent.garden_hashes[0].is_empty());
+    }
+
+    // ── Odu key evolves ──
+
+    #[test]
+    fn odu_key_evolves_on_think() {
+        let mut agent = test_agent();
+        let key_before = agent.odu_key.derived_key.clone();
+
+        execute_event(
+            Primitive::Think { intent: "hello world".into() },
+            &mut agent,
+            None,
+        ).unwrap();
+
+        assert_ne!(agent.odu_key.derived_key, key_before);
+        assert_eq!(agent.odu_key.evolution_count, 1);
+    }
+
+    #[test]
+    fn odu_key_evolves_on_act() {
+        let mut agent = test_agent();
+        for i in 0..21 { agent.think(&format!("t{}", i)); }
+        let key_before = agent.odu_key.derived_key.clone();
+
+        execute_event(
+            Primitive::Act { tool: "web_search".into(), params: "test".into() },
+            &mut agent,
+            None,
+        ).unwrap();
+
+        assert_ne!(agent.odu_key.derived_key, key_before);
     }
 }

@@ -14,7 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen bg-deep text-[var(--text-primary)] antialiased">
         <SuiProvider>
           <header className="border-b border-iron/20 px-6 py-4">
-            <nav className="mx-auto flex max-w-5xl items-center justify-between">
+            <nav className="mx-auto flex max-w-6xl items-center justify-between">
               <a href="/" className="text-lg font-medium tracking-wide text-soul">
                 \u1ECC\u0300\u1E63\u1ECC\u0301
               </a>
@@ -25,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </div>
             </nav>
           </header>
-          <main className="mx-auto max-w-5xl">{children}</main>
+          <main className="mx-auto max-w-6xl">{children}</main>
         </SuiProvider>
       </body>
     </html>

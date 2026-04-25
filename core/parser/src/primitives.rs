@@ -1,6 +1,7 @@
 /// The only three primitives that exist in Ọ̀ṣỌ́.
 /// Nothing else is permitted. No extensions. No escape hatches. No mercy.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Primitive {
     /// birth "name" — Creates a brand new independent agent.
     /// Costs SUI. Starts at reputation = 0, Tier 0.

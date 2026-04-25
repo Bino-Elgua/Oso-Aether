@@ -32,8 +32,9 @@ Executes a task. Updates the pet's growth.
 
 | Tier | XP Required | Visual Complexity |
 |------|-------------|-------------------|
-| 1    | 0           | Newborn           |
-| 2    | 100         | Common            |
-| 3    | 500         | Uncommon          |
-| 4    | 2,000       | Rare              |
-| 5    | 10,000      | Ọ̀ṣỌ́ Sovereign    |
+| 0    | 0           | Newborn           |
+| 1    | 25          | Common            |
+| 2    | 100         | Uncommon          |
+| 3    | 500         | Rare              |
+| 4    | 2,000       | Epic              |
+| 5    | 10,000      | Ọ̀ṣỌ́ Sovereign   |

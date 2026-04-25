@@ -9,6 +9,7 @@
 
 /// Tracks who owns an agent and controls memory access.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct OwnershipRecord {
     /// The agent's unique ID.
     pub agent_id: String,
@@ -24,6 +25,7 @@ pub struct OwnershipRecord {
 
 /// Result of an ownership transfer.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TransferResult {
     pub agent_id: String,
     pub from_owner: String,
@@ -44,13 +46,13 @@ impl OwnershipRecord {
 
     /// Transfer ownership to a new address.
     ///
-    /// This rotates the memory key, which means the previous owner
-    /// can no longer decrypt private thoughts. The agent's memory
-    /// itself is NOT deleted — it's re-encrypted under the new key.
+    /// This rotates the memory key version AND the agent's Odu key,
+    /// which means the previous owner can no longer decrypt private
+    /// thoughts. The agent's memory is NOT deleted — it's re-encrypted
+    /// under the new key.
     ///
-    /// In the current placeholder implementation, we just bump the
-    /// key version. The actual re-encryption will use the Living Odu
-    /// Memory entropy engine when it's built.
+    /// Call `agent.odu_key.rotate_for_transfer(new_owner)` alongside this
+    /// to actually rotate the Living Odu Memory encryption key.
     pub fn transfer(&mut self, new_owner: String) -> TransferResult {
         let from = self.current_owner.clone();
         self.previous_owners.push(from.clone());

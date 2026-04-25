@@ -2,17 +2,22 @@
 
 import { useAetherStore } from '@/lib/state'
 import Link from 'next/link'
+import PetDisplay from '@/components/pets/PetDisplay'
+import { progressToNextTier } from '@engine/growth'
 
 export default function PetsGallery() {
   const { pets, setActivePet } = useAetherStore()
 
   return (
-    <div className="px-6 py-12">
+    <div className="px-4 py-8">
       <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-2xl font-medium">My Pets</h1>
+        <div>
+          <p className="dashboard-kicker">Gallery</p>
+          <h1 className="mt-2 text-3xl font-medium text-[var(--text-primary)]">My Pets</h1>
+        </div>
         <Link
           href="/birth"
-          className="rounded-lg bg-soul px-4 py-2 text-sm text-white hover:bg-soul/90 transition-colors"
+          className="rounded-2xl bg-gradient-to-r from-[#ff8a3d] to-[#f4d16f] px-4 py-2 text-sm font-semibold text-[#1b120c]"
         >
           + Birth New
         </Link>
@@ -30,31 +35,32 @@ export default function PetsGallery() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {pets.map((pet) => (
-            <Link
-              key={pet.id}
-              href={`/chat/${pet.id}`}
-              onClick={() => setActivePet(pet.id)}
-              className="group rounded-lg border border-iron/20 bg-surface p-4 hover:border-soul/40 transition-colors"
-            >
-              <div className="ascii-container mb-3">
-                <pre className="font-mono text-xs leading-[10px] text-purple-400 text-center">
-                  {pet.asciiForm}
-                </pre>
-              </div>
-              <h3 className="font-medium">{pet.name}</h3>
-              <div className="mt-1 flex items-center justify-between text-xs text-muted">
-                <span>Tier {pet.tier}</span>
-                <span>{pet.xp} XP</span>
-              </div>
-              <div className="mt-2 h-1 w-full rounded-full bg-elevated overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-ember transition-all"
-                  style={{ width: `${Math.min(100, (pet.xp / [100, 500, 2000, 10000, 10000][pet.tier - 1]) * 100)}%` }}
-                />
-              </div>
-            </Link>
-          ))}
+          {pets.map((pet) => {
+            const progress = progressToNextTier(pet.xp)
+            const width = pet.tier === 5 ? 100 : Math.max(8, Math.round(progress.progress * 100))
+
+            return (
+              <Link
+                key={pet.id}
+                href={`/chat/${pet.id}`}
+                onClick={() => setActivePet(pet.id)}
+                className="dashboard-panel group transition-transform hover:-translate-y-1"
+              >
+                <PetDisplay pet={pet} interactive showMeta={false} />
+                <h3 className="mt-4 font-medium text-[var(--text-primary)]">{pet.name}</h3>
+                <div className="mt-1 flex items-center justify-between text-xs text-muted">
+                  <span>Tier {pet.tier}</span>
+                  <span>{pet.xp} rep</span>
+                </div>
+                <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-white/5">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-[#ff8a3d] to-[#77dfff] transition-all"
+                    style={{ width: `${width}%` }}
+                  />
+                </div>
+              </Link>
+            )
+          })}
         </div>
       )}
     </div>
