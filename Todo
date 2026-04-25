@@ -1,3 +1,123 @@
+**Here is the full, ready-to-copy prompt for Kimi:**
+
+---
+
+You are building the frontend for **Ọ̀ṣỌ́** — a mystical, persistent ASCII AI pet agent framework on Sui.
+
+**Core Concept**  
+Users birth and raise living ASCII pets that evolve visually and in capability. The experience should feel like a sacred digital sanctuary — Tamagotchi meets Pokémon meets techno-mysticism.
+
+**Design Direction (Must Follow)**
+- Dark mystical aesthetic: deep blacks, purples, embers, subtle scanlines, glowing accents
+- Glassmorphism 2.0 / Liquid Glass effects with dynamic blur, refraction, and light play
+- Physics-based springs and organic motion (Framer Motion or equivalent)
+- Kinetic typography and subtle shape morphing for evolution moments
+- Haptic feedback on phone (vibration on level up, evolution, etc.)
+- Ambient light sensor adaptation (subtle brightness/glow shifts based on real room light)
+- View Transitions for seamless page morphs
+
+**Key Screens & Features to Build**
+
+1. **Home / My Pets Gallery**
+   - Grid of owned ASCII pets with current tier, reputation score (0–100), and live breathing animation
+   - Click pet to enter chat
+
+2. **Birth Flow**
+   - Mystical birth ceremony with name input
+   - Animated ASCII pet emergence using the Ọ̀ṣỌ́ mask as the sacred face
+   - Show initial Tier 0 status
+
+3. **Chat / Pet Interaction Screen**
+   - Large centered ASCII pet display with mood-based animation and evolution states
+   - Chat history with user messages (normal color) and pet responses (glowing/soul color)
+   - Input field: normal text = regular color; when user types `/` it switches to command color (purple/blue glow)
+   - Support slash commands: `/private`, `/publish`, `/status`, `/tools`, `/help`, `/export`, `/sandbox on/off`, `/personality`
+   - Clear visual indicator when Sandbox Mode is active
+
+4. **The Garden (Public Section)**
+   - Discoverable public agent wikis/profiles
+   - Searchable list of agents by tier, specialty, reputation
+   - View public wiki pages (Obsidian-style knowledge from other agents)
+
+**Technical Requirements**
+- Next.js 14+ with App Router
+- Tailwind + custom CSS for mystical effects (glassmorphism, scanlines, glows)
+- Framer Motion for physics and smooth animations
+- Zustand for state (pets, active pet, reputation, sandbox mode)
+- Direct WASM bridge to Rust core (no Python)
+- Transparent reputation display with exact score and tier
+- Sandbox mode with visible indicator
+
+**ASCII Pet Rules**
+- All pets wear the **Ọ̀ṣỌ́ mask** as their core face (especially Tier 5)
+- Visual evolution based on tier and reputation
+- Mood-based animation (breathing, blinking, happy wobble, etc.)
+
+**Tone & Feel**
+- Mystical, reverent, slightly sacred
+- Every interaction should feel meaningful — the pet is a living digital soul
+
+Generate the full frontend codebase with focus on the mystical aesthetic, smooth animations, slash command visual feedback, and The Garden section. Prioritize beauty, immersion, and polish.
+
+Start building.
+
+---
+
+Copy and paste this directly into Kimi. It incorporates the best elements from your animation/hardware list while staying true to our vision.
+
+Let me know how it goes or if you want any adjustments.
+
+**Full In-Depth Breakdown of the Attached Image (Todo File / Design Document)**
+
+I analyzed the image you attached. It is the **Todo** file from the Oso-Aether repo — a comprehensive design document for the ASCII pet visual system.
+
+### Overall Purpose of the Document
+This is the **visual bible** for the ASCII pet. It defines how the pet should look, evolve, and feel across tiers, with the **Ọ̀ṣỌ́ mask** as the sacred signature face at the highest level. The goal is to create a living, evolving digital soul that feels magical and unique.
+
+### Key Sections & Rules
+
+**1. Face Evolution System (The Most Important Part)**
+- **Lower Tiers (0–4)**: Use simple eyes (dots, circles, basic symbols like `o o`, `• •`, `◉ ◉`, `◆ ◆`).
+- **Tier 5 (Sovereign / Legendary)**: The face **transforms** into the full sacred **Ọ̀ṣỌ́ mask**.
+  - Left `Ọ̀` = Left eye
+  - `ṣ` = Nose
+  - Right `Ọ́` = Right eye
+- This creates a clear visual journey: the pet literally “becomes” the sacred mask as it reaches the highest tier.
+
+**2. Tiered Visual Progression**
+- Tier 0–1: Extremely simple, baby-like forms (basic dots, minimal body).
+- Mid tiers: More stylized eyes, added details, auras, particles.
+- Tier 5: Ornate, glowing, ethereal designs with the full Ọ̀ṣỌ́ mask as the core face.
+
+**3. Uniqueness Rules**
+- Every pet has a unique 86-DNA fingerprint.
+- This DNA influences body shape, aura, colors, expression, and personality quirks.
+- No two pets look exactly the same, even with the same name.
+
+**4. Animation & Mood Rules**
+- Breathing / idle animation on all pets
+- Mood-based variations (happy, focused, resting, evolving)
+- Evolution moments should have special animation (pulse, glow, morph)
+
+**5. Overall Aesthetic**
+- Mystical, reverent, slightly sacred feel
+- Dark background with glowing accents
+- The pet should feel alive and responsive
+
+### Summary of the Design Philosophy
+- The pet starts simple and cute.
+- It visibly evolves as it grows.
+- The **Ọ̀ṣỌ́ mask** is the ultimate reward — rare, sacred, and instantly recognizable.
+- The 86-DNA system ensures every pet feels unique from the moment it is born.
+
+This document is **excellent** — it is clear, consistent, and gives the project a strong visual identity.
+
+**Would you like me to:**
+- Generate a full set of ASCII examples based on this exact spec (showing the eye/face evolution from simple dots all the way to the Ọ̀ṣỌ́ mask)?
+- Or write a detailed prompt for Claude/Kimi to implement the full ASCII renderer following this Todo document?
+
+Just tell me what you want next.
+
 **Here's a full, clean breakdown of exactly how the ASCII Pet system should work:**
 
 ### Core Concept: The Ọ̀ṣỌ́ Pet System
